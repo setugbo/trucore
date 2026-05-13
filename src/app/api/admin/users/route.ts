@@ -41,10 +41,13 @@ export async function POST(request: Request) {
     const { email, password, name, role: roleType } = await request.json();
     if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
+    const pw = password || "Admin@2026";
+    if (pw.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return NextResponse.json({ error: "User already exists" }, { status: 400 });
 
-    const hashedPassword = await bcrypt.hash(password || "Admin@2026", 12);
+    const hashedPassword = await bcrypt.hash(pw, 12);
     const targetRole = await prisma.role.findFirst({ where: { type: roleType || "SUPER_ADMIN" } });
     if (!targetRole) return NextResponse.json({ error: "Role not found. Initialize system first." }, { status: 400 });
 

@@ -36,6 +36,25 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       data: { ...(status && { status }), ...(priority && { priority }), ...(assignedToId !== undefined && { assignedToId }) },
     });
     await prisma.auditLog.create({ data: { organizationId: caseItem.organizationId, userId, action: "UPDATE", entityType: "Case", entityId: caseItem.id, metadata: JSON.stringify({ status, priority }) } });
+
+    // Notify all org admins about status change
+    const orgAdmins = await prisma.membership.findMany({
+      where: { organizationId: caseItem.organizationId, role: { type: { in: ["ORG_ADMIN", "SUPER_ADMIN"] } } },
+      include: { user: true },
+    });
+    for (const m of orgAdmins) {
+      await prisma.notification.create({
+        data: {
+          organizationId: caseItem.organizationId,
+          userId: m.user.id,
+          type: "CASE_UPDATED",
+          title: `Case ${caseItem.caseId}: ${status || "Status Updated"}`,
+          message: `Status changed for "${caseItem.title}"`,
+          link: `/dashboard/cases/${caseItem.id}`,
+        },
+      });
+    }
+
     return NextResponse.json(caseItem);
   } catch (error) {
     console.error("Case update error:", error);

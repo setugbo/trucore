@@ -89,6 +89,24 @@ export async function POST(request: Request) {
       },
     });
 
+    // Notify org admins about new case
+    const orgAdmins = await prisma.membership.findMany({
+      where: { organizationId, role: { type: { in: ["ORG_ADMIN", "SUPER_ADMIN"] } } },
+      include: { user: true },
+    });
+    for (const m of orgAdmins) {
+      await prisma.notification.create({
+        data: {
+          organizationId,
+          userId: m.user.id,
+          type: "CASE_CREATED",
+          title: "New Whistleblowing Case",
+          message: `Case ${caseItem.caseId}: ${title}`,
+          link: `/dashboard/cases/${caseItem.id}`,
+        },
+      });
+    }
+
     return NextResponse.json(caseItem, { status: 201 });
   } catch (error) {
     console.error("Case create error:", error);
