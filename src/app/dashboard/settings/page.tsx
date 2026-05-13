@@ -113,14 +113,17 @@ function SettingsContent() {
   }
 
   async function sendInvite() {
-    if (!inviteEmail) { toast.error("Enter an email address"); return; }
+    if (!inviteEmail || !orgId) { toast.error("Enter an email address"); return; }
     setInviting(true);
-    // Simulate invite - in production this would use the SMTP email system
-    await new Promise((r) => setTimeout(r, 1000));
-    toast.success("Invitation sent to " + inviteEmail + " (Email sending configured via SMTP)");
-    setInviteOpen(false);
-    setInviteEmail("");
-    setInviting(false);
+    try {
+      const r = await fetch(`/api/admin/organizations/${orgId}/users`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, name: "", password: "", roleType: inviteRole }),
+      });
+      if (r.ok) { toast.success("User invited. Email sent if SMTP is configured."); setInviteOpen(false); setInviteEmail(""); fetchTeam(); }
+      else { const e = await r.json(); toast.error(e.error || "Failed"); }
+    } catch { toast.error("Failed"); }
+    finally { setInviting(false); }
   }
 
   async function sendTestEmail() {

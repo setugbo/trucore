@@ -98,9 +98,29 @@ function AdminContent() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: inviteEmail, name: inviteName || undefined, password: invitePassword || undefined, roleType: inviteRole }),
       });
-      if (r.ok) { toast.success("User added to organization"); setInviteOpen(false); setInviteEmail(""); setInviteName(""); fetchOrgDetail(selectedOrg); }
+      if (r.ok) { toast.success("User invited (email sent if SMTP configured)"); setInviteOpen(false); setInviteEmail(""); setInviteName(""); fetchOrgDetail(selectedOrg); }
       else { const e = await r.json(); toast.error(e.error || "Failed"); }
     } catch { toast.error("Failed"); } finally { setInviting(false); }
+  }
+
+  async function updateUserRole(membershipId: string, newRole: string) {
+    try {
+      const r = await fetch(`/api/admin/organizations/${selectedOrg}/users`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId, roleType: newRole }),
+      });
+      if (r.ok) { toast.success("Role updated"); fetchOrgDetail(selectedOrg); }
+      else { const e = await r.json(); toast.error(e.error || "Failed"); }
+    } catch { toast.error("Failed"); }
+  }
+
+  async function removeUser(membershipId: string, name: string) {
+    if (!confirm(`Remove ${name} from this organization?`)) return;
+    try {
+      const r = await fetch(`/api/admin/organizations/${selectedOrg}/users?membershipId=${membershipId}`, { method: "DELETE" });
+      if (r.ok) { toast.success("User removed"); fetchOrgDetail(selectedOrg); }
+      else { const e = await r.json(); toast.error(e.error || "Failed"); }
+    } catch { toast.error("Failed"); }
   }
 
   async function saveBranding() {
@@ -331,9 +351,19 @@ function AdminContent() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={m.role.type === "ORG_ADMIN" ? "default" : m.role.type === "MODULE_ADMIN" ? "info" : "secondary"}>
-                              {m.role.name}
-                            </Badge>
+                            <Select value={m.role.type} onValueChange={(newRole) => updateUserRole(m.id, newRole)}>
+                              <SelectTrigger className="h-8 w-[140px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ORG_ADMIN">Org Admin</SelectItem>
+                                <SelectItem value="MODULE_ADMIN">Module Admin</SelectItem>
+                                <SelectItem value="VIEWER">Viewer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeUser(m.id, m.user.name || m.user.email)} title="Remove from org">
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                       ))}
