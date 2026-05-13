@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, Save, Mail, Palette, Users, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { Loading } from "@/components/shared/loading";
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
-  const defaultTab = searchParams.get("tab") || "general";
+  const defaultTab = searchParams?.get("tab") || "general";
 
-  const memberships = (session?.user as any)?.memberships || [];
+  const memberships = ((session?.user as any)?.memberships) || [];
   const orgId = memberships[0]?.organizationId;
 
   const [saving, setSaving] = useState(false);
@@ -273,5 +274,13 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<Loading text="Loading settings..." />}>
+      <SettingsContent />
+    </Suspense>
   );
 }

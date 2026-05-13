@@ -6,13 +6,24 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Eye, BarChart3, Copy } from "lucide-react";
+import { Plus, ClipboardList, Eye, Copy, Globe, GlobeLock, ExternalLink, MoreHorizontal } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+const statusBadge = (status: string) => {
+  const variants: Record<string, "default" | "success" | "warning" | "secondary"> = {
+    DRAFT: "secondary",
+    PUBLISHED: "success",
+    CLOSED: "warning",
+  };
+  return <Badge variant={variants[status] || "default"}>{status === "PUBLISHED" ? "Published" : status.charAt(0) + status.slice(1).toLowerCase()}</Badge>;
+};
 
 export default function GeneralSurveysPage() {
   const { data: session } = useSession();
@@ -22,46 +33,59 @@ export default function GeneralSurveysPage() {
 
   const memberships = (session?.user as any)?.memberships || [];
   const orgId = memberships[0]?.organizationId;
+  const roleType = memberships[0]?.role?.type;
 
-  useEffect(() => {
-    if (!orgId) return;
-    fetchSurveys();
-  }, [orgId]);
+  useEffect(() => { if (!orgId) return; fetchSurveys(); }, [orgId]);
 
   async function fetchSurveys() {
     try {
       const res = await fetch(`/api/general-surveys?organizationId=${orgId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSurveys(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch surveys", err);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setSurveys(await res.json());
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   }
 
-  async function copyLink(surveyId: string, publicLink: string | null) {
-    if (!publicLink) {
-      toast.error("Survey is not public");
-      return;
-    }
-    const url = `${window.location.origin}/survey/${publicLink}`;
-    await navigator.clipboard.writeText(url);
-    toast.success("Survey link copied to clipboard");
+  async function copyLink(publicLink: string | null) {
+    if (!publicLink) { toast.error("Survey is not public"); return; }
+    await navigator.clipboard.writeText(`${window.location.origin}/survey/${publicLink}`);
+    toast.success("Survey link copied");
+  }
+
+  async function toggleStatus(surveyId: string, newStatus: string) {
+    try {
+      const res = await fetch(`/api/general-surveys/${surveyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus, isPublic: newStatus === "PUBLISHED" ? true : undefined }),
+      });
+      if (res.ok) { toast.success(`Survey ${newStatus === "PUBLISHED" ? "published" : "closed"}`); fetchSurveys(); }
+      else { const err = await res.json(); toast.error(err.error || "Failed"); }
+    } catch { toast.error("Failed to update status"); }
+  }
+
+  async function duplicateSurvey(survey: any) {
+    try {
+      const res = await fetch("/api/general-surveys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: orgId,
+          title: survey.title + " (copy)",
+          description: survey.description,
+          category: survey.category,
+          formStyle: survey.formStyle,
+          isPublic: false,
+          questions: survey.questions?.map((q: any, i: number) => ({
+            type: q.type, title: q.title, description: q.description, required: q.required, order: i, options: q.options,
+          })) || [],
+        }),
+      });
+      if (res.ok) { toast.success("Survey duplicated"); fetchSurveys(); }
+      else { const err = await res.json(); toast.error(err.error || "Failed"); }
+    } catch { toast.error("Failed to duplicate"); }
   }
 
   if (loading) return <Loading text="Loading surveys..." />;
-
-  const statusBadge = (status: string) => {
-    const variants: Record<string, "default" | "success" | "warning" | "secondary"> = {
-      DRAFT: "secondary",
-      PUBLISHED: "success",
-      CLOSED: "warning",
-    };
-    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
-  };
 
   return (
     <div>
@@ -70,64 +94,68 @@ export default function GeneralSurveysPage() {
         description="Create and manage standard internal surveys"
         actions={
           <Link href="/dashboard/general-surveys/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Survey
-            </Button>
+            <Button className="gap-2"><Plus className="h-4 w-4" /> New Survey</Button>
           </Link>
         }
       />
 
       {surveys.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title="No surveys yet"
-          description="Create your first general survey to start collecting feedback."
-          action={{
-            label: "Create Survey",
-            onClick: () => router.push("/dashboard/general-surveys/new"),
-          }}
-        />
+        <EmptyState icon={ClipboardList} title="No surveys yet" description="Create your first general survey to start collecting feedback."
+          action={{ label: "Create Survey", onClick: () => router.push("/dashboard/general-surveys/new") }} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {surveys.map((survey) => (
             <Card key={survey.id} className="premium-card hover:border-brand-300 dark:hover:border-brand-700">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base">{survey.title}</CardTitle>
-                    {survey.description && (
-                      <CardDescription className="line-clamp-2">{survey.description}</CardDescription>
-                    )}
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <CardTitle className="text-base truncate">{survey.title}</CardTitle>
+                    {survey.description && <CardDescription className="line-clamp-2">{survey.description}</CardDescription>}
                   </div>
-                  {statusBadge(survey.status)}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {survey.status === "DRAFT" && (
+                        <DropdownMenuItem onClick={() => toggleStatus(survey.id, "PUBLISHED")} className="gap-2">
+                          <Globe className="h-4 w-4" /> Publish
+                        </DropdownMenuItem>
+                      )}
+                      {survey.status === "PUBLISHED" && (
+                        <DropdownMenuItem onClick={() => toggleStatus(survey.id, "CLOSED")} className="gap-2">
+                          <GlobeLock className="h-4 w-4" /> Close
+                        </DropdownMenuItem>
+                      )}
+                      {survey.status === "CLOSED" && (
+                        <DropdownMenuItem onClick={() => toggleStatus(survey.id, "DRAFT")} className="gap-2">
+                          <ClipboardList className="h-4 w-4" /> Reopen as Draft
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => duplicateSurvey(survey)} className="gap-2">
+                        <Copy className="h-4 w-4" /> Duplicate
+                      </DropdownMenuItem>
+                      {survey.publicLink && (
+                        <DropdownMenuItem onClick={() => copyLink(survey.publicLink)} className="gap-2">
+                          <ExternalLink className="h-4 w-4" /> Copy Link
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
+                <div className="mt-2">{statusBadge(survey.status)}</div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <span>{survey._count.responses} responses</span>
-                  <span>{survey.questions.length} questions</span>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                  <span>{survey._count?.responses || 0} responses</span>
+                  <span>{survey.questions?.length || 0} questions</span>
+                  {survey.formStyle && <Badge variant="outline" className="text-[10px]">{survey.formStyle}</Badge>}
                 </div>
-                {survey.publicLink && (
-                  <p className="text-xs text-muted-foreground mb-3 truncate">
-                    Public link available
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <Link href={`/dashboard/general-surveys/${survey.id}`} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full gap-1">
-                      <Eye className="h-3.5 w-3.5" /> View
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyLink(survey.id, survey.publicLink)}
-                    className="gap-1"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
+                <Link href={`/dashboard/general-surveys/${survey.id}`}>
+                  <Button variant="outline" size="sm" className="w-full gap-1">
+                    <Eye className="h-3.5 w-3.5" /> View Details
                   </Button>
-                </div>
+                </Link>
               </CardContent>
             </Card>
           ))}

@@ -267,11 +267,11 @@ model GeneralSurveyQuestion {
 model GeneralSurveyResponse {
   id          String   @id @default(cuid())
   surveyId    String
-  userId      String
+  userId      String?
   submittedAt DateTime @default(now())
 
   survey  GeneralSurvey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  user    User                  @relation(fields: [userId], references: [id])
+  user    User?                 @relation(fields: [userId], references: [id])
   answers GeneralSurveyAnswer[]
 
   @@index([surveyId])

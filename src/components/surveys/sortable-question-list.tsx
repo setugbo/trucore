@@ -25,9 +25,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical, Copy } from "lucide-react";
 
-interface Question {
+export interface Question {
   id: string;
   type: string;
   title: string;
@@ -53,9 +53,10 @@ interface SortableQuestionProps {
   index: number;
   onUpdate: (id: string, field: string, value: any) => void;
   onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
 }
 
-function SortableQuestion({ question, index, onUpdate, onRemove }: SortableQuestionProps) {
+function SortableQuestion({ question, index, onUpdate, onRemove, onDuplicate }: SortableQuestionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
 
   const style = {
@@ -73,7 +74,10 @@ function SortableQuestion({ question, index, onUpdate, onRemove }: SortableQuest
           </button>
           <span className="text-sm font-medium text-muted-foreground">Q{index + 1}</span>
           <div className="flex-1" />
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => onRemove(question.id)} className="text-destructive">
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => onDuplicate(question.id)} title="Duplicate question">
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => onRemove(question.id)} className="text-destructive" title="Remove question">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -84,13 +88,10 @@ function SortableQuestion({ question, index, onUpdate, onRemove }: SortableQuest
             <Select value={question.type} onValueChange={(v) => onUpdate(question.id, "type", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {questionTypes.map((qt) => (
-                  <SelectItem key={qt.value} value={qt.value}>{qt.label}</SelectItem>
-                ))}
+                {questionTypes.map((qt) => (<SelectItem key={qt.value} value={qt.value}>{qt.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
-
           <div className="flex items-end gap-2">
             <div className="flex items-center gap-2 pb-2">
               <Switch checked={question.required} onCheckedChange={(v) => onUpdate(question.id, "required", v)} id={`req-${question.id}`} />
@@ -103,7 +104,6 @@ function SortableQuestion({ question, index, onUpdate, onRemove }: SortableQuest
           <Label>Question Title *</Label>
           <Input value={question.title} onChange={(e) => onUpdate(question.id, "title", e.target.value)} placeholder="Enter your question..." />
         </div>
-
         <div className="space-y-2">
           <Label>Description</Label>
           <Input value={question.description} onChange={(e) => onUpdate(question.id, "description", e.target.value)} placeholder="Additional context..." />
@@ -134,10 +134,17 @@ export function SortableQuestionList({ questions, setQuestions, removeQuestion, 
   );
 
   function addQuestion() {
-    setQuestions([
-      ...questions,
-      { id: String(Date.now()), type: "SHORT_TEXT", title: "", description: "", required: false, options: "" },
-    ]);
+    setQuestions([...questions, { id: String(Date.now()), type: "SHORT_TEXT", title: "", description: "", required: false, options: "" }]);
+  }
+
+  function duplicateQuestion(id: string) {
+    const q = questions.find((q) => q.id === id);
+    if (!q) return;
+    const idx = questions.indexOf(q);
+    const clone = { ...q, id: String(Date.now()), title: q.title + " (copy)" };
+    const updated = [...questions];
+    updated.splice(idx + 1, 0, clone);
+    setQuestions(updated);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -149,25 +156,74 @@ export function SortableQuestionList({ questions, setQuestions, removeQuestion, 
     }
   }
 
+  function parseCSV(text: string) {
+    const lines = text.split("\n").filter((l) => l.trim());
+    const imports: Question[] = [];
+    for (const line of lines) {
+      const [qtype, title, desc, required, ...optsArr] = line.split(",").map((s) => s.trim());
+      if (!title) continue;
+      const type = questionTypes.find((t) => t.value === qtype || t.label.toLowerCase() === qtype.toLowerCase())?.value || "SHORT_TEXT";
+      imports.push({
+        id: String(Date.now()) + Math.random().toString(36),
+        type,
+        title,
+        description: desc || "",
+        required: required?.toLowerCase() === "yes" || required === "true",
+        options: optsArr.join(", ") || "",
+      });
+    }
+    return imports;
+  }
+
+  function handleCSVImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const imported = parseCSV(text);
+      if (imported.length > 0) {
+        setQuestions([...questions, ...imported]);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function downloadTemplate() {
+    const template = "SHORT_TEXT,Your question here,Optional description,No\nMULTIPLE_CHOICE,Choose an option,,Yes,Option 1,Option 2,Option 3\nYES_NO,Do you agree?,,Yes\nRATING_SCALE,Rate your experience,,No";
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "question-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Questions</h2>
-        <Button type="button" variant="outline" size="sm" onClick={addQuestion} className="gap-2">
-          <Plus className="h-4 w-4" /> Add Question
-        </Button>
+        <h2 className="text-lg font-semibold">Questions ({questions.length})</h2>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} title="Download CSV template">
+            Download Template
+          </Button>
+          <label className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" className="gap-2" asChild>
+              <span>Import CSV</span>
+            </Button>
+            <input type="file" accept=".csv" onChange={handleCSVImport} className="hidden" />
+          </label>
+          <Button type="button" variant="outline" size="sm" onClick={addQuestion} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Question
+          </Button>
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
           {questions.map((question, index) => (
-            <SortableQuestion
-              key={question.id}
-              question={question}
-              index={index}
-              onUpdate={updateQuestion}
-              onRemove={removeQuestion}
-            />
+            <SortableQuestion key={question.id} question={question} index={index} onUpdate={updateQuestion} onRemove={removeQuestion} onDuplicate={duplicateQuestion} />
           ))}
         </SortableContext>
       </DndContext>
