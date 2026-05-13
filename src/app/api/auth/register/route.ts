@@ -22,53 +22,41 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const superAdminRole = await prisma.role.findFirst({
+    let superAdminRole = await prisma.role.findFirst({
       where: { type: "SUPER_ADMIN" },
     });
 
     if (!superAdminRole) {
-      return NextResponse.json({ error: "System not properly configured" }, { status: 500 });
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://trucore.vercel.app"}/api/admin/setup`, { method: "POST" });
+      superAdminRole = await prisma.role.findFirst({ where: { type: "SUPER_ADMIN" } });
+    }
+
+    if (!superAdminRole) {
+      return NextResponse.json({ error: "System initialization failed. Please try again." }, { status: 500 });
     }
 
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-        },
+        data: { name, email, password: hashedPassword },
       });
 
       const organization = await tx.organization.create({
-        data: {
-          name: organizationName,
-          slug: orgSlug,
-        },
+        data: { name: organizationName, slug: orgSlug },
       });
 
       await tx.membership.create({
-        data: {
-          userId: user.id,
-          organizationId: organization.id,
-          roleId: superAdminRole.id,
-        },
+        data: { userId: user.id, organizationId: organization.id, roleId: superAdminRole!.id },
       });
 
       const modules = await tx.module.findMany();
       for (const mod of modules) {
         await tx.organizationModule.create({
-          data: {
-            organizationId: organization.id,
-            moduleId: mod.id,
-            isEnabled: true,
-          },
+          data: { organizationId: organization.id, moduleId: mod.id, isEnabled: true },
         });
       }
 
       await tx.brandingConfig.create({
-        data: {
-          organizationId: organization.id,
-        },
+        data: { organizationId: organization.id },
       });
 
       return { user, organization };
