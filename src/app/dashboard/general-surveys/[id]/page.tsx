@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Copy, Trash2, Download, Edit3 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { exportToCSV } from "@/lib/export";
 import { toast } from "sonner";

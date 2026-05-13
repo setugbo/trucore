@@ -32,6 +32,15 @@ export function generateToken(length = 32): string {
   return result;
 }
 
+export function generateReportToken(): string {
+  const prefix = "TC";
+  const nums = Math.floor(100000 + Math.random() * 900000);
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return `${prefix}-${nums}-${code}`;
+}
+
 export function generateCaseId(): string {
   const prefix = "TC";
   const timestamp = Date.now().toString(36).toUpperCase();

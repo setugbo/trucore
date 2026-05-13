@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { generateCaseId, generateToken } from "@/lib/utils";
+import { generateCaseId, generateReportToken } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         category,
         priority: priority || "normal",
         isAnonymous: isAnonymous !== false,
-        reporterToken: generateToken(24),
+        reporterToken: generateReportToken(),
         reporterName: isAnonymous ? null : (reporterName || null),
         reporterEmail: isAnonymous ? null : (reporterEmail || null),
         ...(userId ? { assignedToId: userId } : {}),

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { generateCaseId, generateToken } from "@/lib/utils";
+import { generateCaseId, generateReportToken } from "@/lib/utils";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { v4 as uuid } from "uuid";
@@ -27,12 +27,8 @@ export async function POST(request: Request) {
       reporterName = formData.get("reporterName") as string | null;
       reporterEmail = formData.get("reporterEmail") as string | null;
       organizationSlug = formData.get("organizationSlug") as string | null;
-      Array.from(formData.keys()).forEach((key) => {
-        if (key === "evidence") {
-          const file = formData.get(key) as File;
-          if (file && file.size > 0) evidenceFiles.push(file);
-        }
-      });
+      const allEvidence = formData.getAll("evidence") as File[];
+      allEvidence.forEach((f) => { if (f && f.size > 0) evidenceFiles.push(f); });
     } else {
       const body = await request.json();
       title = body.title;
@@ -60,7 +56,7 @@ export async function POST(request: Request) {
     }
     if (!org) return NextResponse.json({ error: "No organization configured" }, { status: 500 });
 
-    const token = generateToken(24);
+    const token = generateReportToken();
 
     const caseItem = await prisma.case.create({
       data: {
