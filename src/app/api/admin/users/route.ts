@@ -10,8 +10,8 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const users = await prisma.user.findMany({
@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { email, password, name, role: roleType } = await request.json();
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     if (existing) return NextResponse.json({ error: "User already exists" }, { status: 400 });
 
     const hashedPassword = await bcrypt.hash(pw, 12);
-    const targetRole = await prisma.role.findFirst({ where: { type: roleType || "SUPER_ADMIN" } });
+    const targetRole = await prisma.role.findFirst({ where: { type: roleType || "SYSTEM_ADMIN" } });
     if (!targetRole) return NextResponse.json({ error: "Role not found. Initialize system first." }, { status: 400 });
 
     const user = await prisma.user.create({

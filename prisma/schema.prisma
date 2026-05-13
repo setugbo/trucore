@@ -8,18 +8,9 @@ datasource db {
 }
 
 enum RoleType {
-  SUPER_ADMIN
-  ORG_ADMIN
+  SYSTEM_ADMIN
   MODULE_ADMIN
-  CONTRIBUTOR
   VIEWER
-  RESPONDENT
-}
-
-enum ModuleType {
-  GENERAL_SURVEY
-  ANONYMOUS_SURVEY
-  WHISTLEBLOWING
 }
 
 enum CaseStatus {
@@ -57,14 +48,11 @@ model Organization {
   id               String   @id @default(cuid())
   name             String
   slug             String   @unique
-  logo             String?
-  domain           String?  @unique
   publicReportSlug String?  @unique
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   users        Membership[]
-  modules      OrganizationModule[]
   branding     BrandingConfig?
   surveys      GeneralSurvey[]
   anonymousSurveys AnonymousSurvey[]
@@ -84,15 +72,15 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts   Account[]
-  sessions   Session[]
-  memberships Membership[]
+  accounts        Account[]
+  sessions        Session[]
+  membership      Membership?
   surveyResponses GeneralSurveyResponse[]
-  createdSurveys GeneralSurvey[]
-  auditLogs  AuditLog[]
-  notifications Notification[]
-  assignedCases  Case[]       @relation("assignedCases")
-  caseMessages   CaseMessage[]
+  createdSurveys  GeneralSurvey[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  assignedCases   Case[]        @relation("assignedCases")
+  caseMessages    CaseMessage[]
 }
 
 model Account {
@@ -135,7 +123,7 @@ model VerificationToken {
 
 model Membership {
   id             String   @id @default(cuid())
-  userId         String
+  userId         String   @unique
   organizationId String
   roleId         String
   createdAt      DateTime @default(now())
@@ -144,64 +132,18 @@ model Membership {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role         Role         @relation(fields: [roleId], references: [id])
 
-  @@unique([userId, organizationId])
   @@index([organizationId])
-  @@index([userId])
 }
 
 model Role {
   id          String   @id @default(cuid())
   name        String
-  type        RoleType
+  type        RoleType @unique
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   memberships Membership[]
-  permissions Permission[]
-}
-
-model Permission {
-  id        String   @id @default(cuid())
-  roleId    String
-  moduleId  String
-  canView   Boolean  @default(false)
-  canCreate Boolean  @default(false)
-  canEdit   Boolean  @default(false)
-  canDelete Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-
-  @@unique([roleId, moduleId])
-  @@index([roleId])
-}
-
-model Module {
-  id        String     @id @default(cuid())
-  type      ModuleType @unique
-  name      String
-  description String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  permissions        Permission[]
-  organizationModules OrganizationModule[]
-}
-
-model OrganizationModule {
-  id             String     @id @default(cuid())
-  organizationId String
-  moduleId       String
-  isEnabled      Boolean    @default(true)
-  createdAt      DateTime   @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  module       Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, moduleId])
-  @@index([organizationId])
 }
 
 model BrandingConfig {
@@ -211,9 +153,7 @@ model BrandingConfig {
   secondaryColor  String @default("#7C3AED")
   accentColor     String @default("#C4B5FD")
   logoUrl         String?
-  faviconUrl      String?
   companyName     String?
-  customDomain    String?
   theme           String @default("light")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,7 +216,6 @@ model GeneralSurveyResponse {
   answers GeneralSurveyAnswer[]
 
   @@index([surveyId])
-  @@index([userId])
 }
 
 model GeneralSurveyAnswer {
@@ -396,8 +335,8 @@ model CaseMessage {
   isFromReporter Boolean @default(false)
   createdAt DateTime @default(now())
 
-  case   Case  @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  sender User? @relation(fields: [senderId], references: [id])
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sender User?  @relation(fields: [senderId], references: [id])
 
   @@index([caseId])
 }

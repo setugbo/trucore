@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
+import { useOrgId } from "@/lib/use-org";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +23,7 @@ function SettingsContent() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams?.get("tab") || "general";
 
-  const memberships = ((session?.user as any)?.memberships) || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   const [saving, setSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
@@ -43,13 +43,11 @@ function SettingsContent() {
     theme: "light",
   });
 
-  const [modules, setModules] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
 
   useEffect(() => {
     if (!orgId) return;
     fetchBranding();
-    fetchModules();
     fetchTeam();
     fetchSmtpConfig();
   }, [orgId]);
@@ -61,13 +59,6 @@ function SettingsContent() {
         const data = await res.json();
         if (data) setBranding(data);
       }
-    } catch (err) { console.error(err); }
-  }
-
-  async function fetchModules() {
-    try {
-      const res = await fetch(`/api/modules?organizationId=${orgId}`);
-      if (res.ok) setModules(await res.json());
     } catch (err) { console.error(err); }
   }
 
@@ -149,7 +140,6 @@ function SettingsContent() {
       <Tabs defaultValue={defaultTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="general" className="gap-2"><Palette className="h-4 w-4" /> Branding</TabsTrigger>
-          <TabsTrigger value="modules" className="gap-2"><Shield className="h-4 w-4" /> Modules</TabsTrigger>
           <TabsTrigger value="team" className="gap-2"><Users className="h-4 w-4" /> Team</TabsTrigger>
           <TabsTrigger value="email" className="gap-2"><Mail className="h-4 w-4" /> Email</TabsTrigger>
         </TabsList>
@@ -163,7 +153,7 @@ function SettingsContent() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label>Company Name</Label>
-                <Input value={branding.companyName || memberships[0]?.organization?.name || ""}
+                <Input value={branding.companyName || ""}
                   onChange={(e) => setBranding((p) => ({ ...p, companyName: e.target.value }))}
                   placeholder="Organization name" />
               </div>
@@ -256,11 +246,9 @@ function SettingsContent() {
                         <Select value={inviteRole} onValueChange={setInviteRole}>
                           <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="ORG_ADMIN">Organization Admin</SelectItem>
+                            <SelectItem value="SYSTEM_ADMIN">System Admin</SelectItem>
                             <SelectItem value="MODULE_ADMIN">Module Admin</SelectItem>
-                            <SelectItem value="CONTRIBUTOR">Contributor</SelectItem>
                             <SelectItem value="VIEWER">Viewer</SelectItem>
-                            <SelectItem value="RESPONDENT">Respondent</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useOrgId } from "@/lib/use-org";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ interface Question {
 }
 
 export default function NewAnonymousSurveyPage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
@@ -37,8 +36,7 @@ export default function NewAnonymousSurveyPage() {
     { id: "1", type: "SHORT_TEXT", title: "", description: "", required: false, options: "" },
   ]);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   function removeQuestion(id: string) {
     if (questions.length === 1) return;

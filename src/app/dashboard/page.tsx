@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useOrgId } from "@/lib/use-org";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatsCard } from "@/components/shared/stats-card";
 import { Loading } from "@/components/shared/loading";
@@ -11,12 +11,10 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   useEffect(() => {
     if (!orgId) return;

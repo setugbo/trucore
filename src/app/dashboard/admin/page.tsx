@@ -51,9 +51,9 @@ function AdminContent() {
   const [brandColors, setBrandColors] = useState({ primaryColor: "#5B21B6", secondaryColor: "#7C3AED", accentColor: "#C4B5FD", companyName: "" });
   const [savingBranding, setSavingBranding] = useState(false);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
-  const orgId = memberships[0]?.organizationId;
+  const membership = (session?.user as any)?.membership;
+  const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
+  const orgId = membership?.organizationId;
 
   useEffect(() => {
     if (isSuperAdmin) { fetchOrganizations(); fetchAllUsers(); fetchPlatformStats(); }
@@ -319,7 +319,7 @@ function AdminContent() {
                             <Select value={inviteRole} onValueChange={setInviteRole}>
                               <SelectTrigger><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="ORG_ADMIN">Organization Admin</SelectItem>
+                                <SelectItem value="MODULE_ADMIN">Organization Admin</SelectItem>
                                 <SelectItem value="MODULE_ADMIN">Module Admin</SelectItem>
                                 <SelectItem value="VIEWER">Viewer</SelectItem>
                               </SelectContent>
@@ -356,7 +356,7 @@ function AdminContent() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="ORG_ADMIN">Org Admin</SelectItem>
+                                <SelectItem value="MODULE_ADMIN">Org Admin</SelectItem>
                                 <SelectItem value="MODULE_ADMIN">Module Admin</SelectItem>
                                 <SelectItem value="VIEWER">Viewer</SelectItem>
                               </SelectContent>
@@ -406,20 +406,6 @@ function AdminContent() {
                 </CardContent>
               </Card>
 
-              {/* Modules */}
-              <Card>
-                <CardHeader><CardTitle>Modules</CardTitle><CardDescription>Enabled features</CardDescription></CardHeader>
-                <CardContent>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {(orgDetail.modules || []).map((m: any) => (
-                      <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
-                        <span className="text-sm font-medium">{m.module.name}</span>
-                        <Badge variant={m.isEnabled ? "success" : "secondary"}>{m.isEnabled ? "On" : "Off"}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           )}
         </TabsContent>
@@ -447,7 +433,7 @@ function AdminContent() {
                       <div className="flex items-center gap-2">
                         <Badge variant={u.isActive ? "success" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
                         <span className="text-xs text-muted-foreground">{u.memberships?.length || 0} org(s)</span>
-                        {u.role === "SUPER_ADMIN" && <Badge variant="default">Super Admin</Badge>}
+                        {u.role === "SYSTEM_ADMIN" && <Badge variant="default">Super Admin</Badge>}
                       </div>
                     </div>
                   ))}

@@ -10,8 +10,8 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const orgs = await prisma.organization.findMany({
@@ -30,8 +30,8 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { name, slug } = await request.json();
@@ -42,15 +42,10 @@ export async function POST(request: Request) {
     const existing = await prisma.organization.findUnique({ where: { slug: orgSlug } });
     if (existing) return NextResponse.json({ error: "Organization with this slug already exists" }, { status: 400 });
 
-    const org = await prisma.$transaction(async (tx) => {
-      const o = await tx.organization.create({ data: { name, slug: orgSlug } });
-      await tx.brandingConfig.create({ data: { organizationId: o.id } });
-      const modules = await tx.module.findMany();
-      for (const mod of modules) {
-        await tx.organizationModule.create({ data: { organizationId: o.id, moduleId: mod.id, isEnabled: true } });
-      }
-      return o;
+    const org = await prisma.organization.create({
+      data: { name, slug: orgSlug },
     });
+    await prisma.brandingConfig.create({ data: { organizationId: org.id } });
 
     return NextResponse.json(org, { status: 201 });
   } catch (error) {
@@ -63,8 +58,8 @@ export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { organizationId, publicReportSlug } = await request.json();

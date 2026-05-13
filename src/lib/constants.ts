@@ -1,5 +1,3 @@
-import { ModuleType } from "@/generated/prisma/client";
-
 export const APP_NAME = "TRUCORE";
 export const APP_TAGLINE = "Speak Freely. Report Safely.";
 

@@ -30,12 +30,12 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     let superAdminRole = await prisma.role.findFirst({
-      where: { type: "SUPER_ADMIN" },
+      where: { type: "SYSTEM_ADMIN" },
     });
 
     if (!superAdminRole) {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || "https://trucore.vercel.app"}/api/admin/setup`, { method: "POST" });
-      superAdminRole = await prisma.role.findFirst({ where: { type: "SUPER_ADMIN" } });
+      superAdminRole = await prisma.role.findFirst({ where: { type: "SYSTEM_ADMIN" } });
     }
 
     if (!superAdminRole) {

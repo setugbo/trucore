@@ -40,12 +40,7 @@ export async function getOrgContext(organizationId?: string) {
 
   if (organizationId) {
     const membership = await prisma.membership.findUnique({
-      where: {
-        userId_organizationId: {
-          userId,
-          organizationId,
-        },
-      },
+      where: { userId },
       include: {
         role: {
           include: { permissions: { include: { module: true } } },
@@ -79,7 +74,7 @@ export async function checkPermission(
 
   if (Array.isArray(membership)) return false;
 
-  if (membership.role.type === "SUPER_ADMIN" || membership.role.type === "ORG_ADMIN") {
+  if (membership.role.type === "SYSTEM_ADMIN" || membership.role.type === "MODULE_ADMIN") {
     return true;
   }
 

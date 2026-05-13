@@ -40,8 +40,8 @@ export function Sidebar() {
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+  const membership = (session?.user as any)?.membership;
+  const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
 
   return (
     <aside

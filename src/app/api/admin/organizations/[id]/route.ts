@@ -11,14 +11,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const isSuperAdmin = ((session.user as any)?.memberships || []).some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const org = await prisma.organization.findUnique({
       where: { id: params.id },
       include: {
         branding: true,
-        modules: { include: { module: true } },
         users: {
           include: {
             user: { select: { id: true, name: true, email: true, image: true, isActive: true, createdAt: true } },
@@ -51,7 +51,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const isSuperAdmin = ((session.user as any)?.memberships || []).some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await request.json();
@@ -76,7 +77,8 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const isSuperAdmin = ((session.user as any)?.memberships || []).some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     await prisma.organization.delete({ where: { id: params.id } });

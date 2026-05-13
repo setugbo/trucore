@@ -6,89 +6,48 @@ import prisma from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma as any),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  pages: {
-    signIn: "/login",
-    signOut: "/login",
-    error: "/login",
-  },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  pages: { signIn: "/login", signOut: "/login", error: "/login" },
   providers: [
     CredentialsProvider({
       name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
+      credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
-        }
-
+        if (!credentials?.email || !credentials?.password) throw new Error("Invalid credentials");
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: {
-            memberships: {
-              include: {
-                organization: true,
-                role: {
-                  include: {
-                    permissions: { include: { module: true } },
-                  },
-                },
-              },
-            },
-          },
+          include: { membership: { include: { organization: true, role: true } } },
         });
-
         if (!user || !user.password) throw new Error("Invalid credentials");
         if (!(await bcrypt.compare(credentials.password, user.password))) throw new Error("Invalid credentials");
         if (!user.isActive) throw new Error("Account is deactivated");
-
-        // Serialize minimal membership data for JWT (avoid circular refs)
-        const memberships = user.memberships.map((m) => ({
-          id: m.id,
-          userId: m.userId,
-          organizationId: m.organizationId,
-          roleId: m.roleId,
-          organization: { id: m.organization.id, name: m.organization.name, slug: m.organization.slug, logo: m.organization.logo },
-          role: {
-            id: m.role.id,
-            name: m.role.name,
-            type: m.role.type,
-            permissions: m.role.permissions.map((p) => ({
-              id: p.id,
-              moduleId: p.moduleId,
-              module: { id: p.module.id, type: p.module.type, name: p.module.name },
-              canView: p.canView,
-              canCreate: p.canCreate,
-              canEdit: p.canEdit,
-              canDelete: p.canDelete,
-            })),
-          },
-        }));
-
-        return { id: user.id, email: user.email, name: user.name, image: user.image, memberships };
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          membership: user.membership ? {
+            id: user.membership.id,
+            organizationId: user.membership.organizationId,
+            organization: { id: user.membership.organization.id, name: user.membership.organization.name, slug: user.membership.organization.slug },
+            role: { id: user.membership.role.id, name: user.membership.role.name, type: user.membership.role.type },
+          } : null,
+        };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.memberships = (user as any).memberships;
-      }
-      if (trigger === "update" && session?.memberships) {
-        token.memberships = session.memberships;
+        token.membership = (user as any).membership;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
-        (session.user as any).memberships = token.memberships || [];
+        (session.user as any).membership = token.membership;
       }
       return session;
     },

@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
     // Notify org admins about new case
     const orgAdmins = await prisma.membership.findMany({
-      where: { organizationId, role: { type: { in: ["ORG_ADMIN", "SUPER_ADMIN"] } } },
+      where: { organizationId, role: { type: { in: ["MODULE_ADMIN", "SYSTEM_ADMIN"] } } },
       include: { user: true },
     });
     for (const m of orgAdmins) {

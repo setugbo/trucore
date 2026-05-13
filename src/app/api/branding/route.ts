@@ -40,10 +40,10 @@ export async function PUT(request: Request) {
     const { organizationId, ...data } = await request.json();
 
     const userId = (session.user as any).id;
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const sessionMembership = (session.user as any)?.membership;
+    const isSuperAdmin = sessionMembership?.role?.type === "SYSTEM_ADMIN";
     const membership = await prisma.membership.findUnique({
-      where: { userId_organizationId: { userId, organizationId } },
+      where: { userId },
     });
 
     if (!membership && !isSuperAdmin) {

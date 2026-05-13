@@ -8,9 +8,9 @@ import { sendEmail, renderInviteEmail } from "@/lib/email";
 export const dynamic = "force-dynamic";
 
 async function checkAccess(orgId: string, session: any) {
-  const memberships = (session.user as any)?.memberships || [];
-  const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
-  const isOrgAdmin = memberships.some((m: any) => m.organizationId === orgId && m.role?.type === "ORG_ADMIN");
+  const membership = (session.user as any)?.membership;
+  const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
+  const isOrgAdmin = membership?.organizationId === orgId && membership?.role?.type === "MODULE_ADMIN";
   return isSuperAdmin || isOrgAdmin;
 }
 
@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const { email, name, password, roleType } = await request.json();
     if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
-    const validRoles = ["ORG_ADMIN", "MODULE_ADMIN", "VIEWER"];
+    const validRoles = ["MODULE_ADMIN", "MODULE_ADMIN", "VIEWER"];
     if (roleType && !validRoles.includes(roleType)) {
       return NextResponse.json({ error: "Invalid role. Use ORG_ADMIN, MODULE_ADMIN, or VIEWER" }, { status: 400 });
     }
@@ -40,7 +40,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const existingMembership = await prisma.membership.findUnique({
-      where: { userId_organizationId: { userId: user.id, organizationId: params.id } },
+      where: { userId: user.id },
     });
     if (existingMembership) {
       return NextResponse.json({ error: "User is already a member" }, { status: 400 });
@@ -93,7 +93,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { membershipId, roleType } = await request.json();
     if (!membershipId || !roleType) return NextResponse.json({ error: "membershipId and roleType are required" }, { status: 400 });
 
-    const validRoles = ["ORG_ADMIN", "MODULE_ADMIN", "VIEWER"];
+    const validRoles = ["MODULE_ADMIN", "MODULE_ADMIN", "VIEWER"];
     if (!validRoles.includes(roleType)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
 
     const targetRole = await prisma.role.findFirst({ where: { type: roleType } });

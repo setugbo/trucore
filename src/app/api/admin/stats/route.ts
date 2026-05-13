@@ -9,8 +9,8 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const [userCount, orgCount, surveyCount, anonCount, caseCount, surveyResponseCount, anonResponseCount, recentLogs] = await Promise.all([

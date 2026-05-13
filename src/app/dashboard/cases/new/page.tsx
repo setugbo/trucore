@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useOrgId } from "@/lib/use-org";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ import Link from "next/link";
 import { CASE_CATEGORIES, PRIORITY_OPTIONS } from "@/lib/constants";
 
 export default function NewCasePage() {
-  const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
@@ -28,8 +27,7 @@ export default function NewCasePage() {
   const [reporterName, setReporterName] = useState("");
   const [reporterEmail, setReporterEmail] = useState("");
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

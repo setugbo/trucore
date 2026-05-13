@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     // Create a notification for super admins
     const superAdmins = await prisma.user.findMany({
-      where: { memberships: { some: { role: { type: "SUPER_ADMIN" } } } },
+      where: { membership: { role: { type: "SYSTEM_ADMIN" } } },
     });
 
     for (const admin of superAdmins) {
@@ -49,8 +49,8 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const memberships = (session.user as any)?.memberships || [];
-    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    const membership = (session.user as any)?.membership;
+    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
     if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const requests = await prisma.notification.findMany({

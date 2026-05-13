@@ -40,11 +40,11 @@ export async function PUT(request: Request) {
 
     const userId = (session.user as any).id;
     const membership = await prisma.membership.findUnique({
-      where: { userId_organizationId: { userId, organizationId } },
-      include: { role: true },
+      where: { userId },
+      include: { role: true, organization: true },
     });
 
-    if (!membership || (membership.role.type !== "SUPER_ADMIN" && membership.role.type !== "ORG_ADMIN")) {
+    if (!membership || (membership.role.type !== "SYSTEM_ADMIN" && membership.role.type !== "MODULE_ADMIN") || membership.organizationId !== organizationId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

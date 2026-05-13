@@ -39,7 +39,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // Notify all org admins about status change
     const orgAdmins = await prisma.membership.findMany({
-      where: { organizationId: caseItem.organizationId, role: { type: { in: ["ORG_ADMIN", "SUPER_ADMIN"] } } },
+      where: { organizationId: caseItem.organizationId, role: { type: { in: ["MODULE_ADMIN", "SYSTEM_ADMIN"] } } },
       include: { user: true },
     });
     for (const m of orgAdmins) {
