@@ -58,3 +58,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const memberships = (session.user as any)?.memberships || [];
+    const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
+    if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { organizationId, publicReportSlug } = await request.json();
+
+    if (publicReportSlug) {
+      const existing = await prisma.organization.findUnique({ where: { publicReportSlug } });
+      if (existing && existing.id !== organizationId) {
+        return NextResponse.json({ error: "This slug is already in use by another organization" }, { status: 400 });
+      }
+    }
+
+    const org = await prisma.organization.update({
+      where: { id: organizationId },
+      data: { publicReportSlug: publicReportSlug || null },
+    });
+
+    return NextResponse.json(org);
+  } catch (error) {
+    console.error("Admin update org error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

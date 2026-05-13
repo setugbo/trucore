@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Database, Building2, Users, Activity, History, Plus, Loader2, Globe, Settings, BarChart3, Cpu, HardDrive, AlertTriangle, Server, Zap, Mail } from "lucide-react";
+import { Shield, Database, Building2, Users, Activity, History, Plus, Loader2, Globe, Settings, BarChart3, Cpu, HardDrive, AlertTriangle, Server, Zap, Mail, Link2, Check, X } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
@@ -41,12 +41,16 @@ function AdminContent() {
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const [editingSlug, setEditingSlug] = useState<Record<string, string>>({});
+  const [savingSlug, setSavingSlug] = useState<Record<string, boolean>>({});
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   const memberships = (session?.user as any)?.memberships || [];
   const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
   const orgId = memberships[0]?.organizationId;
 
-  useEffect(() => { if (isSuperAdmin) { fetchAuditLogs(); fetchOrganizations(); fetchAllUsers(); fetchPlatformStats(); } }, [isSuperAdmin, orgId]);
+  useEffect(() => { if (isSuperAdmin) { fetchAuditLogs(); fetchOrganizations(); fetchAllUsers(); fetchPlatformStats(); fetchAccessRequests(); } }, [isSuperAdmin, orgId]);
 
   async function fetchPlatformStats() {
     setStatsLoading(true);
@@ -106,6 +110,27 @@ function AdminContent() {
     } catch { toast.error("Failed"); } finally { setCreatingAdmin(false); }
   }
 
+  async function updateReportSlug(orgId: string) {
+    const slug = editingSlug[orgId];
+    setSavingSlug((prev: any) => ({ ...prev, [orgId]: true }));
+    try {
+      const res = await fetch("/api/admin/organizations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId: orgId, publicReportSlug: slug || null }),
+      });
+      if (res.ok) { toast.success("Report portal updated"); fetchOrganizations(); }
+      else { const err = await res.json(); toast.error(err.error || "Failed"); }
+    } catch { toast.error("Failed"); }
+    finally { setSavingSlug((prev: any) => ({ ...prev, [orgId]: false })); }
+  }
+
+  async function fetchAccessRequests() {
+    setRequestsLoading(true);
+    try { const res = await fetch("/api/access-requests"); if (res.ok) setAccessRequests(await res.json()); } catch {}
+    finally { setRequestsLoading(false); }
+  }
+
   if (!isSuperAdmin) {
     return (<div className="flex flex-col items-center justify-center py-16">
       <Shield className="h-12 w-12 text-muted-foreground mb-4" />
@@ -137,6 +162,7 @@ function AdminContent() {
           <TabsTrigger value="organizations" className="gap-2"><Globe className="h-4 w-4" /> Organizations</TabsTrigger>
           <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> Users & Admins</TabsTrigger>
           <TabsTrigger value="system" className="gap-2"><Database className="h-4 w-4" /> System</TabsTrigger>
+          <TabsTrigger value="requests" className="gap-2"><Mail className="h-4 w-4" /> Access Requests</TabsTrigger>
           <TabsTrigger value="audit" className="gap-2"><History className="h-4 w-4" /> Audit Logs</TabsTrigger>
         </TabsList>
 
@@ -292,12 +318,27 @@ function AdminContent() {
               {orgsLoading ? <Loading text="Loading..." /> : organizations.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No organizations</p> : (
                 <div className="space-y-3">
                   {organizations.map((org: any) => (
-                    <div key={org.id} className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950"><Building2 className="h-5 w-5 text-brand-600" /></div>
-                        <div><p className="font-medium">{org.name}</p><p className="text-sm text-muted-foreground font-mono">{org.slug} &middot; {org._count?.users || 0} users &middot; {org._count?.surveys || 0} surveys</p></div>
+                    <div key={org.id} className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950"><Building2 className="h-5 w-5 text-brand-600" /></div>
+                          <div><p className="font-medium">{org.name}</p><p className="text-sm text-muted-foreground font-mono">{org.slug} &middot; {org._count?.users || 0} users</p></div>
+                        </div>
+                        <Badge variant="success">Active</Badge>
                       </div>
-                      <Badge variant="success">Active</Badge>
+                      <div className="flex items-center gap-2 pl-13">
+                        <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 flex gap-2 items-center">
+                          <span className="text-xs text-muted-foreground shrink-0">Report Portal:</span>
+                          <Input value={editingSlug[org.id] !== undefined ? editingSlug[org.id] : (org.publicReportSlug || "")} onChange={(e) => setEditingSlug((prev: any) => ({ ...prev, [org.id]: e.target.value }))} placeholder="(not configured)" className="h-8 text-xs flex-1" />
+                          <Button size="sm" variant="outline" className="h-8 text-xs shrink-0" onClick={() => updateReportSlug(org.id)}>
+                            {savingSlug[org.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                          </Button>
+                          {org.publicReportSlug && (
+                            <Button size="sm" variant="ghost" className="h-8 text-xs shrink-0" onClick={() => window.open(`/report/${org.publicReportSlug}`, "_blank")}>Preview</Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -361,6 +402,46 @@ function AdminContent() {
                 <div className="flex justify-between"><span className="text-sm text-muted-foreground">Database</span><span className="font-semibold">{dbSize}</span></div>
               </div></CardContent></Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="requests" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2"><Mail className="h-5 w-5 text-brand-600" /><CardTitle>Access Requests</CardTitle></div>
+                <Button variant="outline" size="sm" onClick={fetchAccessRequests}>Refresh</Button>
+              </div>
+              <CardDescription>Users requesting access to the platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {requestsLoading ? <Loading text="Loading..." /> : accessRequests.length === 0 ? (
+                <div className="text-center py-16">
+                  <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">No pending access requests</p>
+                  <p className="text-xs text-muted-foreground mt-1">When users submit access requests, they will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {accessRequests.map((req: any) => (
+                    <div key={req.id} className="flex items-start gap-3 rounded-lg border p-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 font-medium shrink-0">
+                        {req.title?.[0] || "?"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{req.title}</p>
+                        <p className="text-sm text-muted-foreground">{req.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{formatDateTime(req.createdAt)}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" variant="outline" className="gap-1"><Check className="h-3 w-3" /> Approve</Button>
+                        <Button size="sm" variant="outline" className="gap-1 text-destructive"><X className="h-3 w-3" /> Decline</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="audit" className="mt-6">

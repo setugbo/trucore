@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,11 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Logo } from "@/components/shared/logo";
+import { Loading } from "@/components/shared/loading";
 import { toast } from "sonner";
-import { Loader2, Shield, Lock, CheckCircle } from "lucide-react";
+import { Loader2, Shield, Lock, CheckCircle, Building2 } from "lucide-react";
 import { CASE_CATEGORIES } from "@/lib/constants";
 
-export default function PublicReportPage() {
+export default function OrgReportPage() {
+  const params = useParams();
+  const [org, setOrg] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<"form" | "submitting" | "done">("form");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -22,6 +27,17 @@ export default function PublicReportPage() {
   const [reporterEmail, setReporterEmail] = useState("");
   const [accessToken, setAccessToken] = useState("");
 
+  useEffect(() => { fetchOrg(); }, [params.slug]);
+
+  async function fetchOrg() {
+    try {
+      const res = await fetch(`/api/organizations/by-report-slug/${params.slug}`);
+      if (res.ok) setOrg(await res.json());
+      else setOrg(null);
+    } catch { setOrg(null); }
+    finally { setLoading(false); }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title || !description) { toast.error("Title and description are required"); return; }
@@ -30,17 +46,29 @@ export default function PublicReportPage() {
       const res = await fetch("/api/cases/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title, description, category, priority, isAnonymous: !reporterName && !reporterEmail,
-          reporterName: reporterName || undefined,
-          reporterEmail: reporterEmail || undefined,
-        }),
+        body: JSON.stringify({ organizationSlug: params.slug, title, description, category, priority, isAnonymous: !reporterName && !reporterEmail, reporterName: reporterName || undefined, reporterEmail: reporterEmail || undefined }),
       });
       if (!res.ok) { const err = await res.json(); toast.error(err.error || "Submission failed"); setStep("form"); return; }
       const data = await res.json();
       setAccessToken(data.reporterToken);
       setStep("done");
     } catch { toast.error("Something went wrong"); setStep("form"); }
+  }
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center"><Loading text="Loading..." /></div>;
+
+  if (!org) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <CardTitle>Report Portal Not Found</CardTitle>
+            <CardDescription>The organization you are looking for does not have a public report portal configured.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
   if (step === "done") {
@@ -53,26 +81,16 @@ export default function PublicReportPage() {
                 <CheckCircle className="h-10 w-10 text-emerald-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Report Submitted Successfully</CardTitle>
-            <CardDescription className="text-base mt-2">
-              Your report has been received and will be reviewed confidentially.
-            </CardDescription>
+            <CardTitle className="text-2xl">Report Submitted</CardTitle>
+            <CardDescription className="text-base mt-2">Your report to <strong>{org.name}</strong> has been received.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
-                Save your access token to track this case:
-              </p>
-              <p className="font-mono text-sm bg-amber-100 dark:bg-amber-900/50 p-3 rounded select-all">
-                {accessToken}
-              </p>
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 p-4">
+              <p className="text-sm font-medium text-amber-800 mb-2">Save your access token:</p>
+              <p className="font-mono text-sm bg-amber-100 dark:bg-amber-900/50 p-3 rounded select-all">{accessToken}</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This token is your only way to check case updates. TRUCORE does not store any identifying information.
-            </p>
-            <Button variant="outline" className="w-full" onClick={() => window.location.href = "/"}>
-              Return Home
-            </Button>
+            <p className="text-xs text-muted-foreground">This token is your only way to check case updates.</p>
+            <Button variant="outline" className="w-full" onClick={() => window.location.href = "/"}>Return Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -85,19 +103,15 @@ export default function PublicReportPage() {
         <div className="text-center mb-8">
           <Logo className="justify-center mb-4" />
           <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900/30 px-4 py-1.5 text-sm text-amber-700 dark:text-amber-300 mb-4">
-            <Shield className="h-4 w-4" /> Confidential & Secure
+            <Building2 className="h-4 w-4" /> {org.name} &mdash; <Shield className="h-4 w-4" /> Confidential Report Portal
           </div>
           <h1 className="text-3xl font-bold">Submit a Confidential Report</h1>
-          <p className="text-muted-foreground mt-2">
-            Use this form to report concerns safely and anonymously. All submissions are encrypted and confidential.
-          </p>
+          <p className="text-muted-foreground mt-2">Your identity is protected. All submissions are encrypted.</p>
         </div>
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Lock className="h-4 w-4" /> Your identity is protected
-            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2"><Lock className="h-4 w-4" /> Your identity is protected</div>
             <CardTitle>Report Details</CardTitle>
             <CardDescription>Provide as much detail as possible</CardDescription>
           </CardHeader>
@@ -107,21 +121,16 @@ export default function PublicReportPage() {
                 <Label htmlFor="title">Report Title *</Label>
                 <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brief title of your report" required />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="description">Detailed Description *</Label>
-                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Please provide a detailed account including dates, locations, and any relevant information..." rows={6} required />
+                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Please provide a detailed account..." rows={6} required />
               </div>
-
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Category</Label>
                   <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {CASE_CATEGORIES.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
-                    </SelectContent>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>{CASE_CATEGORIES.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
@@ -137,37 +146,21 @@ export default function PublicReportPage() {
                   </Select>
                 </div>
               </div>
-
               <div className="rounded-lg bg-muted p-4">
                 <p className="text-sm font-medium mb-2">Optional: Provide contact info</p>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Leaving these blank keeps your report completely anonymous.
-                </p>
+                <p className="text-xs text-muted-foreground mb-4">Leaving these blank keeps your report completely anonymous.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Your Name</Label>
-                    <Input id="name" value={reporterName} onChange={(e) => setReporterName(e.target.value)} placeholder="Optional" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" value={reporterEmail} onChange={(e) => setReporterEmail(e.target.value)} placeholder="Optional" />
-                  </div>
+                  <div className="space-y-2"><Label htmlFor="name">Your Name</Label><Input id="name" value={reporterName} onChange={(e) => setReporterName(e.target.value)} placeholder="Optional" /></div>
+                  <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={reporterEmail} onChange={(e) => setReporterEmail(e.target.value)} placeholder="Optional" /></div>
                 </div>
               </div>
-
               <Button type="submit" disabled={step === "submitting"} size="lg" className="w-full gap-2">
                 {step === "submitting" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-                {step === "submitting" ? "Submitting..." : "Submit Report"}
+                {step === "submitting" ? "Submitting..." : "Submit Report to " + org.name}
               </Button>
             </form>
           </CardContent>
         </Card>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-semibold">TRUCORE</span> &mdash; Speak Freely. Report Safely.
-          </p>
-        </div>
       </div>
     </div>
   );

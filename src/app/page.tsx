@@ -69,8 +69,8 @@ export default function HomePage() {
               <Button variant="ghost">Sign in</Button>
             </Link>
             <Link href="/register">
-              <Button>Get Started</Button>
-            </Link>
+                <Button>Request Access</Button>
+              </Link>
           </div>
         </div>
       </header>
@@ -94,7 +94,7 @@ export default function HomePage() {
           <div className="mt-10 flex items-center justify-center gap-4">
             <Link href="/register">
               <Button size="xl" className="gap-2">
-                Start Free Trial <ArrowRight className="h-4 w-4" />
+                Request Access <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/login">
@@ -146,7 +146,7 @@ export default function HomePage() {
             Your identity is protected and all communications are encrypted.
           </p>
           <div className="mt-8">
-            <Link href="/report">
+            <Link href="/report/rite-foods">
               <Button size="xl" className="gap-2">
                 <Shield className="h-5 w-5" /> Submit a Confidential Report
               </Button>

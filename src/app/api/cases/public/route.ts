@@ -7,15 +7,22 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, category, priority, isAnonymous, reporterName, reporterEmail } = body;
+    const { title, description, category, priority, isAnonymous, reporterName, reporterEmail, organizationSlug } = body;
 
     if (!title || !description) {
       return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
     }
 
-    // Try to find the first organization (public submissions go to a default org)
-    // In production, you'd use a domain/organization lookup
-    const org = await prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
+    // Find org by slug or by publicReportSlug, or fall back to first org
+    let org = null;
+    if (organizationSlug) {
+      org = await prisma.organization.findFirst({
+        where: { OR: [{ slug: organizationSlug }, { publicReportSlug: organizationSlug }] },
+      });
+    }
+    if (!org) {
+      org = await prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
+    }
     if (!org) return NextResponse.json({ error: "No organization configured" }, { status: 500 });
 
     const token = generateToken(24);

@@ -96,7 +96,7 @@ export default function LoginPage() {
             <div className="mt-4 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link href="/register" className="font-medium text-brand-600 hover:text-brand-500">
-                Create one
+                Request Access
               </Link>
             </div>
           </CardContent>

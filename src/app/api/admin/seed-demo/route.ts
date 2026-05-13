@@ -50,14 +50,14 @@ export async function GET() {
     const crypto = require("crypto");
 
     // === TRUCORE LTD ===
-    const trucoreOrg = await prisma.organization.create({ data: { name: "TRUCORE Ltd.", slug: "trucore-ltd" } });
+    const trucoreOrg = await prisma.organization.create({ data: { name: "TRUCORE Ltd.", slug: "trucore-ltd", publicReportSlug: "trucore" } });
     await prisma.brandingConfig.create({ data: { organizationId: trucoreOrg.id, companyName: "TRUCORE Ltd." } });
     for (const m of modules) await prisma.organizationModule.create({ data: { organizationId: trucoreOrg.id, moduleId: m.id, isEnabled: true } });
     const sa = await prisma.user.create({ data: { name: "Super Admin", email: "superadmin@trucore.com", password: pw, isActive: true } });
     await prisma.membership.create({ data: { userId: sa.id, organizationId: trucoreOrg.id, roleId: sar.id } });
 
     // === RITE FOODS ===
-    const rf = await prisma.organization.create({ data: { name: "Rite Foods", slug: "rite-foods" } });
+    const rf = await prisma.organization.create({ data: { name: "Rite Foods", slug: "rite-foods", publicReportSlug: "rite-foods" } });
     await prisma.brandingConfig.create({ data: { organizationId: rf.id, companyName: "Rite Foods", primaryColor: "#059669", secondaryColor: "#10B981", accentColor: "#A7F3D0" } });
     for (const m of modules) await prisma.organizationModule.create({ data: { organizationId: rf.id, moduleId: m.id, isEnabled: true } });
 
