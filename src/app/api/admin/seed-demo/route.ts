@@ -18,11 +18,10 @@ async function ensureRoles() {
 export async function GET() {
   try {
     const { roles, modules } = await ensureRoles();
-    const superAdminRole = roles.find((r: any) => r.type === "SUPER_ADMIN");
-    const orgAdminRole = roles.find((r: any) => r.type === "ORG_ADMIN");
-    const viewerRole = roles.find((r: any) => r.type === "VIEWER");
-    const respondentRole = roles.find((r: any) => r.type === "RESPONDENT");
-    if (!superAdminRole || !orgAdminRole) throw new Error("Roles not found");
+    const superAdminRole = roles.find((r: any) => r.type === "SUPER_ADMIN")!;
+    const orgAdminRole = roles.find((r: any) => r.type === "ORG_ADMIN")!;
+    const viewerRole = roles.find((r: any) => r.type === "VIEWER")!;
+    const respondentRole = roles.find((r: any) => r.type === "RESPONDENT")!;
 
     const pw = await bcrypt.hash("Inspire@2026", 12);
 
