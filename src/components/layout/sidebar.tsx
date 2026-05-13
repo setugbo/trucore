@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,54 +17,31 @@ import {
   Users,
   Building2,
   ChevronLeft,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 
 const sidebarItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  {
-    title: "General Surveys",
-    href: "/dashboard/general-surveys",
-    icon: ClipboardList,
-  },
-  {
-    title: "Anonymous Surveys",
-    href: "/dashboard/anonymous-surveys",
-    icon: EyeOff,
-  },
-  {
-    title: "Whistleblowing",
-    href: "/dashboard/cases",
-    icon: Shield,
-  },
-  {
-    title: "Reports",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-  },
+  { title: "General Surveys", href: "/dashboard/general-surveys", icon: ClipboardList },
+  { title: "Anonymous Surveys", href: "/dashboard/anonymous-surveys", icon: EyeOff },
+  { title: "Whistleblowing", href: "/dashboard/cases", icon: Shield },
+  { title: "Reports", href: "/dashboard/reports", icon: BarChart3 },
 ];
 
 const bottomItems = [
-  {
-    title: "Organization",
-    href: "/dashboard/settings",
-    icon: Building2,
-  },
-  {
-    title: "Team",
-    href: "/dashboard/settings?tab=team",
-    icon: Users,
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings?tab=general",
-    icon: Settings,
-  },
+  { title: "Organization", href: "/dashboard/settings", icon: Building2 },
+  { title: "Team", href: "/dashboard/settings?tab=team", icon: Users },
+  { title: "Settings", href: "/dashboard/settings?tab=general", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+
+  const memberships = (session?.user as any)?.memberships || [];
+  const isSuperAdmin = memberships.some((m: any) => m.role?.type === "SUPER_ADMIN");
 
   return (
     <aside
@@ -112,6 +90,23 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {isSuperAdmin && (
+            <Link href="/dashboard/admin">
+              <Button
+                variant={pathname.startsWith("/dashboard/admin") ? "secondary" : "ghost"}
+                size={collapsed ? "icon" : "default"}
+                className={cn(
+                  "w-full justify-start gap-3 font-normal mt-2",
+                  collapsed && "justify-center px-0",
+                  pathname.startsWith("/dashboard/admin") && "bg-amber-100 dark:bg-amber-950/30 font-medium text-amber-700 dark:text-amber-400"
+                )}
+              >
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>Admin Panel</span>}
+              </Button>
+            </Link>
+          )}
         </nav>
 
         <Separator className="my-4" />

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/logo";
-import { ArrowRight, Shield, ClipboardList, EyeOff, BarChart3, Lock, Mail, AlertTriangle } from "lucide-react";
+import { ArrowRight, Shield, ClipboardList, EyeOff, BarChart3, Lock, Mail, AlertTriangle, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -146,11 +146,18 @@ export default function HomePage() {
             Your identity is protected and all communications are encrypted.
           </p>
           <div className="mt-8">
-            <Link href="/report/rite-foods">
-              <Button size="xl" className="gap-2">
-                <Shield className="h-5 w-5" /> Submit a Confidential Report
-              </Button>
-            </Link>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <Link href="/report/rite-foods">
+                <Button size="xl" className="gap-2">
+                  <Shield className="h-5 w-5" /> Submit a Confidential Report
+                </Button>
+              </Link>
+              <Link href="/track">
+                <Button variant="outline" size="xl" className="gap-2">
+                  <Search className="h-5 w-5" /> Track a Report
+                </Button>
+              </Link>
+            </div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             No account needed. No tracking. Complete anonymity guaranteed.
