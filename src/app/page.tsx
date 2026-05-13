@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/logo";
-import { ArrowRight, Shield, ClipboardList, EyeOff, BarChart3, Lock, Mail } from "lucide-react";
+import { ArrowRight, Shield, ClipboardList, EyeOff, BarChart3, Lock, Mail, AlertTriangle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -131,6 +131,30 @@ export default function HomePage() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* Public Report CTA */}
+      <section className="border-t bg-gradient-to-br from-brand-50 to-white dark:from-brand-950 dark:to-background py-20">
+        <div className="mx-auto max-w-7xl px-6 text-center">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full bg-amber-100 dark:bg-amber-900/30 px-4 py-1.5 text-sm text-amber-700 dark:text-amber-300 mb-6">
+            <AlertTriangle className="h-4 w-4" /> Need to report a concern?
+          </div>
+          <h2 className="text-3xl font-bold">Speak Up. Stay Safe.</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+            Our secure whistleblowing portal allows anyone to submit confidential reports without creating an account.
+            Your identity is protected and all communications are encrypted.
+          </p>
+          <div className="mt-8">
+            <Link href="/report">
+              <Button size="xl" className="gap-2">
+                <Shield className="h-5 w-5" /> Submit a Confidential Report
+              </Button>
+            </Link>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            No account needed. No tracking. Complete anonymity guaranteed.
+          </p>
         </div>
       </section>
 
