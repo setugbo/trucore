@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Loading } from "@/components/shared/loading";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -28,5 +29,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return null;
   }
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <ErrorBoundary>
+      <DashboardShell>{children}</DashboardShell>
+    </ErrorBoundary>
+  );
 }

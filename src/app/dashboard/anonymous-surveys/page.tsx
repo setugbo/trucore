@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { useOrgId } from "@/lib/use-org";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
@@ -21,14 +22,12 @@ const statusBadge = (status: string) => {
   return <Badge variant={variants[status] || "default"}>{status === "PUBLISHED" ? "Published" : status.charAt(0) + status.slice(1).toLowerCase()}</Badge>;
 };
 
-export default function AnonymousSurveysPage() {
-  const { data: session } = useSession();
+function AnonymousSurveysPageContent() {
   const router = useRouter();
   const [surveys, setSurveys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   useEffect(() => { if (!orgId) return; fetchSurveys(); }, [orgId]);
 
@@ -143,5 +142,13 @@ export default function AnonymousSurveysPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AnonymousSurveysPage() {
+  return (
+    <ErrorBoundary>
+      <AnonymousSurveysPageContent />
+    </ErrorBoundary>
   );
 }

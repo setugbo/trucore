@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const COLORS = ["#5B21B6", "#7C3AED", "#C4B5FD", "#8B5CF6", "#A78BFA"];
 
-export default function AnonymousSurveyDetailPage() {
+function AnonymousSurveyDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const [survey, setSurvey] = useState<any>(null);
@@ -172,5 +173,13 @@ export default function AnonymousSurveyDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function AnonymousSurveyDetailPage() {
+  return (
+    <ErrorBoundary>
+      <AnonymousSurveyDetailPageContent />
+    </ErrorBoundary>
   );
 }

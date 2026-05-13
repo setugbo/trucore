@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { useOrgId } from "@/lib/use-org";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,13 +15,11 @@ import { toast } from "sonner";
 
 const COLORS = ["#5B21B6", "#7C3AED", "#C4B5FD", "#8B5CF6", "#A78BFA", "#DDD6FE"];
 
-export default function ReportsPage() {
-  const { data: session } = useSession();
+function ReportsPageContent() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const memberships = (session?.user as any)?.memberships || [];
-  const orgId = memberships[0]?.organizationId;
+  const orgId = useOrgId();
 
   useEffect(() => { if (!orgId) return; fetchReports(); }, [orgId]);
 
@@ -176,5 +175,13 @@ export default function ReportsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <ErrorBoundary>
+      <ReportsPageContent />
+    </ErrorBoundary>
   );
 }
