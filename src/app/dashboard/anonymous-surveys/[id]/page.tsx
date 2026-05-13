@@ -2,22 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Trash2, Download } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { exportToCSV } from "@/lib/export";
 import { toast } from "sonner";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const COLORS = ["#5B21B6", "#7C3AED", "#C4B5FD", "#8B5CF6", "#A78BFA"];
 
-function AnonymousSurveyDetailPageContent() {
+function AnonSurveyDetailContent() {
   const params = useParams();
   const router = useRouter();
   const [survey, setSurvey] = useState<any>(null);
@@ -40,8 +41,7 @@ function AnonymousSurveyDetailPageContent() {
 
   async function copyLink() {
     if (!survey?.publicLink) { toast.error("No link available"); return; }
-    const url = `${window.location.origin}/survey/anonymous/${survey.publicLink}`;
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(`${window.location.origin}/survey/anonymous/${survey.publicLink}`);
     toast.success("Link copied!");
   }
 
@@ -53,15 +53,24 @@ function AnonymousSurveyDetailPageContent() {
     } catch { toast.error("Failed to delete"); }
   }
 
+  function exportAnonResponses() {
+    if (responses.length === 0) { toast.error("No responses to export"); return; }
+    const questions = survey?.questions || [];
+    const csvData = responses.map((r: any, idx: number) => {
+      const row: Record<string, any> = { "#": idx + 1, Token: r.token?.substring(0, 8) + "...", Submitted: formatDate(r.submittedAt) };
+      questions.forEach((q: any) => {
+        const answer = r.answers?.find((a: any) => a.questionId === q.id);
+        row[q.title] = answer?.value || "";
+      });
+      return row;
+    });
+    exportToCSV(csvData, `${survey?.title?.replace(/\s+/g, "-")}-anonymous-responses`);
+    toast.success("Responses exported (no identifying data)");
+  }
+
   function getChartData(questionId: string) {
     const answerCounts: Record<string, number> = {};
-    responses.forEach((r) => {
-      r.answers?.forEach((a: any) => {
-        if (a.questionId === questionId) {
-          answerCounts[a.value] = (answerCounts[a.value] || 0) + 1;
-        }
-      });
-    });
+    responses.forEach((r) => r.answers?.forEach((a: any) => { if (a.questionId === questionId) answerCounts[a.value] = (answerCounts[a.value] || 0) + 1; }));
     return Object.entries(answerCounts).map(([name, value]) => ({ name, value }));
   }
 
@@ -70,43 +79,31 @@ function AnonymousSurveyDetailPageContent() {
 
   return (
     <div>
-      <PageHeader
-        title={survey.title}
-        description={survey.description || "Anonymous survey"}
+      <PageHeader title={survey.title} description={survey.description || "Anonymous survey"}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={copyLink} className="gap-1">
-              <Copy className="h-4 w-4" /> Copy Link
-            </Button>
-            <Button variant="outline" size="sm" onClick={deleteSurvey} className="gap-1 text-destructive">
-              <Trash2 className="h-4 w-4" /> Delete
-            </Button>
-            <Link href="/dashboard/anonymous-surveys">
-              <Button variant="ghost" size="sm" className="gap-1">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </Button>
-            </Link>
+            {responses.length > 0 && <Button variant="outline" size="sm" onClick={exportAnonResponses} className="gap-1"><Download className="h-4 w-4" /> Export CSV</Button>}
+            <Button variant="outline" size="sm" onClick={copyLink} className="gap-1"><Copy className="h-4 w-4" /> Copy Link</Button>
+            <Button variant="outline" size="sm" onClick={deleteSurvey} className="gap-1 text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
+            <Link href="/dashboard/anonymous-surveys"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" /> Back</Button></Link>
           </div>
-        }
-      />
+        } />
 
       <div className="flex gap-4 mb-6">
         <Badge>{survey.status}</Badge>
         <Badge variant="secondary">{survey.formStyle}</Badge>
-        <span className="text-sm text-muted-foreground">
-          {survey._count?.responses || 0} anonymous responses &middot; {survey.questions?.length || 0} questions
-        </span>
+        <span className="text-sm text-muted-foreground">{survey._count?.responses || 0} anonymous responses &middot; {survey.questions?.length || 0} questions</span>
       </div>
 
       <Tabs defaultValue="analytics">
         <TabsList>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="responses">Responses</TabsTrigger>
+          <TabsTrigger value="responses">Responses {responses.length > 0 && `(${responses.length})`}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics" className="mt-6">
           {responses.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">No data to analyze</div>
+            <div className="text-center py-16 text-muted-foreground">No data to analyze yet</div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
               {survey.questions?.map((question: any) => {
@@ -120,8 +117,7 @@ function AnonymousSurveyDetailPageContent() {
                         <ResponsiveContainer width="100%" height={200}>
                           <BarChart data={data}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="name" tick={{ fontSize: 12 }} /><YAxis />
-                            <Tooltip />
+                            <XAxis dataKey="name" tick={{ fontSize: 12 }} /><YAxis /><Tooltip />
                             <Bar dataKey="value" fill="#5B21B6" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
@@ -130,8 +126,7 @@ function AnonymousSurveyDetailPageContent() {
                           <PieChart>
                             <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                               {data.map((_, index) => (<Cell key={index} fill={COLORS[index % COLORS.length]} />))}
-                            </Pie>
-                            <Tooltip />
+                            </Pie><Tooltip />
                           </PieChart>
                         </ResponsiveContainer>
                       )}
@@ -145,10 +140,13 @@ function AnonymousSurveyDetailPageContent() {
 
         <TabsContent value="responses" className="mt-6">
           {responses.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">No responses yet</div>
+            <div className="text-center py-16 text-muted-foreground">No anonymous responses yet</div>
           ) : (
             <div className="space-y-4">
-              {responses.map((response, i) => (
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={exportAnonResponses} className="gap-2"><Download className="h-4 w-4" /> Export All Responses (CSV)</Button>
+              </div>
+              {responses.map((response: any, i: number) => (
                 <Card key={response.id}>
                   <CardHeader className="py-4">
                     <div className="flex items-center justify-between">
@@ -159,10 +157,7 @@ function AnonymousSurveyDetailPageContent() {
                   <CardContent>
                     <div className="space-y-2">
                       {response.answers?.map((answer: any) => (
-                        <div key={answer.id} className="text-sm">
-                          <span className="font-medium">{answer.question?.title}: </span>
-                          <span className="text-muted-foreground">{answer.value}</span>
-                        </div>
+                        <div key={answer.id} className="text-sm"><span className="font-medium">{answer.question?.title}: </span><span className="text-muted-foreground">{answer.value}</span></div>
                       ))}
                     </div>
                   </CardContent>
@@ -176,10 +171,6 @@ function AnonymousSurveyDetailPageContent() {
   );
 }
 
-export default function AnonymousSurveyDetailPage() {
-  return (
-    <ErrorBoundary>
-      <AnonymousSurveyDetailPageContent />
-    </ErrorBoundary>
-  );
+export default function AnonSurveyDetailPage() {
+  return <ErrorBoundary><AnonSurveyDetailContent /></ErrorBoundary>;
 }
