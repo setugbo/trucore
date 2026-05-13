@@ -205,11 +205,13 @@ export default function PublicAnonymousSurveyPage() {
         {question.type === "RATING_SCALE" && (
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((rating) => (
-              <Button key={rating}
-                variant={answers[question.id] === String(rating) ? "default" : "outline"} size="sm" className="h-10 w-10"
-                onClick={() => handleAnswer(question.id, String(rating))}>{rating}</Button>
+              <Button key={rating} variant={answers[question.id] === String(rating) ? "default" : "outline"} size="sm" className="h-10 w-10" onClick={() => handleAnswer(question.id, String(rating))}>{rating}</Button>
             ))}
           </div>
+        )}
+
+        {question.type === "FILE_UPLOAD" && (
+          <Input type="file" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleAnswer(question.id, file.name); }} />
         )}
       </div>
     );

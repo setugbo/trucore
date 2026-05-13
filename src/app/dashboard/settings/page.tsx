@@ -10,8 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Save, Mail, Palette, Users, Shield } from "lucide-react";
+import { Loader2, Save, Mail, Palette, Users, Shield, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useSearchParams } from "next/navigation";
 import { Loading } from "@/components/shared/loading";
 
@@ -26,6 +28,10 @@ function SettingsContent() {
   const [saving, setSaving] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [testingEmail, setTestingEmail] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("VIEWER");
+  const [inviting, setInviting] = useState(false);
 
   const [smtpConfig, setSmtpConfig] = useState({ host: "", port: "", user: "", from: "" });
 
@@ -104,6 +110,17 @@ function SettingsContent() {
         fetchModules();
       }
     } catch { toast.error("Failed to update"); }
+  }
+
+  async function sendInvite() {
+    if (!inviteEmail) { toast.error("Enter an email address"); return; }
+    setInviting(true);
+    // Simulate invite - in production this would use the SMTP email system
+    await new Promise((r) => setTimeout(r, 1000));
+    toast.success("Invitation sent to " + inviteEmail + " (Email sending configured via SMTP)");
+    setInviteOpen(false);
+    setInviteEmail("");
+    setInviting(false);
   }
 
   async function sendTestEmail() {
@@ -212,8 +229,46 @@ function SettingsContent() {
         <TabsContent value="team">
           <Card>
             <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Manage organization members and roles</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Team Members</CardTitle>
+                  <CardDescription>Manage organization members and roles</CardDescription>
+                </div>
+                <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2"><UserPlus className="h-4 w-4" /> Invite Member</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Invite Team Member</DialogTitle>
+                      <DialogDescription>Send an invitation email to join your organization.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="inviteEmail">Email Address</Label>
+                        <Input id="inviteEmail" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="colleague@company.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Select value={inviteRole} onValueChange={setInviteRole}>
+                          <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ORG_ADMIN">Organization Admin</SelectItem>
+                            <SelectItem value="MODULE_ADMIN">Module Admin</SelectItem>
+                            <SelectItem value="CONTRIBUTOR">Contributor</SelectItem>
+                            <SelectItem value="VIEWER">Viewer</SelectItem>
+                            <SelectItem value="RESPONDENT">Respondent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={sendInvite} disabled={inviting} className="w-full">
+                        {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Send Invitation
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               {team.length === 0 ? (

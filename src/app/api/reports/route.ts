@@ -78,6 +78,48 @@ export async function GET(request: Request) {
       }));
     }
 
+    if (!type || type === "trends") {
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+      const monthlySurveys = await prisma.generalSurvey.groupBy({
+        by: ["createdAt"],
+        where: { organizationId, createdAt: { gte: twelveMonthsAgo } },
+        _count: true,
+      });
+
+      const monthlyCases = await prisma.case.groupBy({
+        by: ["createdAt"],
+        where: { organizationId, createdAt: { gte: twelveMonthsAgo } },
+        _count: true,
+      });
+
+      const trends: number[] = [];
+      const trendResponses: number[] = [];
+      const trendCases: number[] = [];
+
+      for (let i = 0; i < 12; i++) {
+        const monthStart = new Date();
+        monthStart.setMonth(monthStart.getMonth() - (11 - i));
+        monthStart.setDate(1);
+        const monthEnd = new Date(monthStart);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+        trends.push(monthlySurveys.filter((s) => {
+          const d = new Date(s.createdAt);
+          return d >= monthStart && d < monthEnd;
+        }).length);
+
+        trendResponses.push(0); // Would need response-level timestamps
+        trendCases.push(monthlyCases.filter((c) => {
+          const d = new Date(c.createdAt);
+          return d >= monthStart && d < monthEnd;
+        }).length);
+      }
+
+      result.trends = { surveys: trends, responses: trendResponses, cases: trendCases };
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Reports error:", error);
