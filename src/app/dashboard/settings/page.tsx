@@ -27,6 +27,8 @@ function SettingsContent() {
   const [testEmail, setTestEmail] = useState("");
   const [testingEmail, setTestingEmail] = useState(false);
 
+  const [smtpConfig, setSmtpConfig] = useState({ host: "", port: "", user: "", from: "" });
+
   const [branding, setBranding] = useState({
     primaryColor: "#5B21B6",
     secondaryColor: "#7C3AED",
@@ -43,6 +45,7 @@ function SettingsContent() {
     fetchBranding();
     fetchModules();
     fetchTeam();
+    fetchSmtpConfig();
   }, [orgId]);
 
   async function fetchBranding() {
@@ -60,6 +63,13 @@ function SettingsContent() {
       const res = await fetch(`/api/modules?organizationId=${orgId}`);
       if (res.ok) setModules(await res.json());
     } catch (err) { console.error(err); }
+  }
+
+  async function fetchSmtpConfig() {
+    try {
+      const res = await fetch("/api/email/config");
+      if (res.ok) setSmtpConfig(await res.json());
+    } catch {}
   }
 
   async function fetchTeam() {
@@ -239,25 +249,17 @@ function SettingsContent() {
               <CardDescription>Configure email settings for notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>SMTP Host</Label>
-                  <Input value={process.env.SMTP_HOST || ""} disabled placeholder="mail.company.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label>SMTP Port</Label>
-                  <Input value={process.env.SMTP_PORT || ""} disabled placeholder="465" />
-                </div>
-                <div className="space-y-2">
-                  <Label>SMTP User</Label>
-                  <Input value={process.env.SMTP_USER || ""} disabled placeholder="user@company.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label>SMTP From</Label>
-                  <Input value={process.env.SMTP_FROM || ""} disabled placeholder="noreply@company.com" />
+              <div className="rounded-lg bg-muted p-4">
+                <p className="text-sm text-muted-foreground">
+                  Email is configured via server environment variables. The following settings are active:
+                </p>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-muted-foreground">SMTP Host:</span><span className="font-mono text-xs">{smtpConfig.host || "Not set"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">SMTP Port:</span><span className="font-mono text-xs">{smtpConfig.port || "Not set"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">SMTP User:</span><span className="font-mono text-xs">{smtpConfig.user || "Not set"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">From Address:</span><span className="font-mono text-xs">{smtpConfig.from || "Not set"}</span></div>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">SMTP settings are configured in your environment variables.</p>
 
               <div className="pt-4 border-t space-y-3">
                 <Label>Test Email</Label>

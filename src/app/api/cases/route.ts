@@ -61,9 +61,9 @@ export async function POST(request: Request) {
         priority: priority || "normal",
         isAnonymous: isAnonymous !== false,
         reporterToken: generateToken(24),
-        reporterName: isAnonymous ? null : reporterName,
-        reporterEmail: isAnonymous ? null : reporterEmail,
-        assignedToId: userId,
+        reporterName: isAnonymous ? null : (reporterName || null),
+        reporterEmail: isAnonymous ? null : (reporterEmail || null),
+        ...(userId ? { assignedToId: userId } : {}),
       },
     });
 
