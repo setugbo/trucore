@@ -55,8 +55,8 @@ export async function POST(request: Request) {
       data: {
         organizationId,
         title,
-        description,
-        category,
+        ...(description !== undefined && { description }),
+        ...(category !== undefined && { category }),
         formStyle: formStyle || "NOTION",
         publicLink: generateToken(16),
         startDate: startDate ? new Date(startDate) : null,

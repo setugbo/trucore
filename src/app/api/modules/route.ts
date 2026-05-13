@@ -42,7 +42,7 @@ export async function PUT(request: Request) {
 
     const updated = await prisma.organizationModule.update({
       where: { id: organizationModuleId },
-      data: { isEnabled },
+      data: { ...(isEnabled !== undefined && { isEnabled }) },
     });
 
     return NextResponse.json(updated);

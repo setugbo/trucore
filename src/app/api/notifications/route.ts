@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const { organizationId, userId, type, title, message, link } = await request.json();
 
     const notification = await prisma.notification.create({
-      data: { organizationId, userId, type, title, message, link },
+      data: { organizationId, ...(userId !== undefined && { userId }), type, title, message, ...(link !== undefined && { link }) },
     });
 
     return NextResponse.json(notification, { status: 201 });

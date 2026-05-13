@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     await prisma.auditLog.create({
       data: {
         organizationId,
-        userId,
+        ...(userId ? { userId } : {}),
         action: "CREATE",
         entityType: "Case",
         entityId: caseItem.id,

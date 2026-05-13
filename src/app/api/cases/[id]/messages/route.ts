@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const { content, isFromReporter } = await request.json();
     if (!content) return NextResponse.json({ error: "Content is required" }, { status: 400 });
     const message = await prisma.caseMessage.create({
-      data: { caseId: params.id, senderId: isFromReporter ? null : userId, content, isFromReporter: isFromReporter || false },
+      data: { caseId: params.id, senderId: isFromReporter ? null : (userId || null), content, isFromReporter: isFromReporter || false },
     });
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
