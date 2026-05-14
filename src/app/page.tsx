@@ -147,7 +147,7 @@ export default function HomePage() {
           </p>
           <div className="mt-8">
             <div className="flex items-center justify-center gap-4 flex-wrap">
-              <Link href="/report/rite-foods">
+              <Link href="/whistleblowing">
                 <Button size="xl" className="gap-2">
                   <Shield className="h-5 w-5" /> Submit a Confidential Report
                 </Button>

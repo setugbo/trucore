@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendEmail, renderCaseUpdateEmail } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,15 +53,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     });
     for (const m of orgAdmins) {
       await prisma.notification.create({
-        data: {
-          organizationId: caseItem.organizationId,
-          userId: m.user.id,
-          type: "CASE_UPDATED",
-          title: `Case ${caseItem.caseId}: ${status || "Status Updated"}`,
-          message: `Status changed for "${caseItem.title}"`,
-          link: `/dashboard/cases/${caseItem.id}`,
-        },
+        data: { organizationId: caseItem.organizationId, userId: m.user.id, type: "CASE_UPDATED", title: `Case ${caseItem.caseId}: ${status || "Status Updated"}`, message: `Status changed for "${caseItem.title}"`, link: `/dashboard/cases/${caseItem.id}` },
       });
+      // Send email notification
+      try {
+        await sendEmail({
+          to: m.user.email,
+          subject: `TRUCORE - Case Update: ${caseItem.caseId}`,
+          html: renderCaseUpdateEmail({
+            caseId: caseItem.caseId,
+            status: status || "Updated",
+            message: `Status changed for "${caseItem.title}"`,
+            dashboardLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://trucore.vercel.app"}/dashboard/cases/${caseItem.id}`,
+          }),
+        });
+      } catch (e) { console.error("Status update email failed:", e); }
     }
 
     return NextResponse.json(caseItem);
