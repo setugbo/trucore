@@ -37,10 +37,12 @@ export function renderInviteEmail({
   orgName,
   inviterName,
   inviteLink,
+  password,
 }: {
   orgName: string;
   inviterName: string;
   inviteLink: string;
+  password?: string;
 }) {
   return `
     <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -50,19 +52,28 @@ export function renderInviteEmail({
       </div>
       <div style="background: #FFFFFF; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
         <h2 style="color: #111827; font-size: 24px; font-weight: 600; margin-bottom: 16px;">
-          You've Been Invited!
+          Your TRUCORE Account Has Been Created
         </h2>
-        <p style="color: #6B7280; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-          <strong>${inviterName}</strong> has invited you to join <strong>${orgName}</strong> on TRUCORE.
+        <p style="color: #6B7280; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
+          <strong>${inviterName}</strong> has added you to <strong>${orgName}</strong> on TRUCORE.
         </p>
-        <div style="text-align: center; margin: 32px 0;">
+        ${password ? `
+        <div style="background:#F3F4F6;border-radius:8px;padding:16px;margin:16px 0;">
+          <p style="color:#374151;font-size:14px;font-weight:500;margin:0 0 8px;">Your temporary login credentials:</p>
+          <p style="font-family:monospace;font-size:14px;background:#1e293b;color:#e2e8f0;padding:10px 14px;border-radius:6px;margin:0;word-break:break-all;">
+            Email: <span style="color:#a78bfa">${inviteLink.split('?')[0].replace('/login','')}</span><br>
+            Password: <span style="color:#a78bfa">${password}</span>
+          </p>
+        </div>
+        ` : ''}
+        <div style="text-align: center; margin: 24px 0;">
           <a href="${inviteLink}" 
              style="background: #5B21B6; color: #FFFFFF; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
-            Accept Invitation
+            Sign In to TRUCORE
           </a>
         </div>
         <p style="color: #9CA3AF; font-size: 14px; margin-top: 24px;">
-          This link will expire in 7 days. If you did not expect this invitation, please ignore this email.
+          Please change your password after first login.
         </p>
       </div>
       <div style="text-align: center; margin-top: 24px;">

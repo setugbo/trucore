@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { sendEmail, renderInviteEmail } from "@/lib/email";
+import { generatePassword } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const targetRole = await prisma.role.findFirst({ where: { type: roleType || "VIEWER" } });
     if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 400 });
 
+    const generatedPassword = generatePassword();
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      const pw = await bcrypt.hash(password || "Welcome@2026", 12);
+      const pw = await bcrypt.hash(password || generatedPassword, 12);
       user = await prisma.user.create({ data: { name: name || email.split("@")[0], email, password: pw, isActive: true } });
     }
 
@@ -57,15 +59,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
       data: { organizationId: params.id, userId: user.id, type: "INVITATION", title: "Welcome!", message: `You've been added as ${targetRole.name} to ${org?.name || "the organization"}`, link: "/dashboard" },
     });
 
-    // Email invitation
+    // Email invitation with password
+    const invitePassword = password || generatedPassword;
     try {
       await sendEmail({
         to: email,
-        subject: `You've been invited to ${org?.name || "TRUCORE"}`,
+        subject: `Welcome to ${org?.name || "TRUCORE"} - Your Account Details`,
         html: renderInviteEmail({
           orgName: org?.name || "the organization",
           inviterName: (session.user as any).name || "An administrator",
           inviteLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://trucore.vercel.app"}/login`,
+          password: invitePassword,
         }),
       });
     } catch (e) { console.error("Invite email failed (SMTP may not be configured):", e); }

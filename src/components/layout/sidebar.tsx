@@ -151,28 +151,30 @@ export function Sidebar() {
 
         <Separator className="my-4" />
 
-        <nav className="flex flex-col gap-1">
-          {bottomItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.includes(item.href);
-            return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  size={collapsed ? "icon" : "default"}
-                  className={cn(
-                    "w-full justify-start gap-3 font-normal",
-                    collapsed && "justify-center px-0",
-                    isActive && "bg-sidebar-accent font-medium"
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
-                </Button>
-              </Link>
-            );
-          })}
-        </nav>
+        {isSuperAdmin && (
+          <nav className="flex flex-col gap-1">
+            {bottomItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname.includes(item.href);
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size={collapsed ? "icon" : "default"}
+                    className={cn(
+                      "w-full justify-start gap-3 font-normal",
+                      collapsed && "justify-center px-0",
+                      isActive && "bg-sidebar-accent font-medium"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>{item.title}</span>}
+                  </Button>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </ScrollArea>
 
       <div className="border-t p-2">

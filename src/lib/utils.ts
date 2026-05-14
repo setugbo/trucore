@@ -23,6 +23,20 @@ export function formatDateTime(date: Date | string): string {
   }).format(new Date(date));
 }
 
+export function generatePassword(length = 12): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const all = upper + lower + digits;
+  let result = upper[Math.floor(Math.random() * upper.length)];
+  result += lower[Math.floor(Math.random() * lower.length)];
+  result += digits[Math.floor(Math.random() * digits.length)];
+  for (let i = 3; i < length; i++) {
+    result += all[Math.floor(Math.random() * all.length)];
+  }
+  return result.split("").sort(() => Math.random() - 0.5).join("");
+}
+
 export function generateToken(length = 32): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
