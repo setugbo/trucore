@@ -22,8 +22,17 @@ function ReportsContent() {
   const orgId = useOrgId();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<any[]>([]);
 
-  useEffect(() => { if (!orgId) return; fetchReports(); }, [orgId]);
+  useEffect(() => {
+    if (!orgId) return;
+    fetchReports();
+    fetch("/api/permissions").then(r => r.json()).then(d => setPermissions(d.permissions || [])).catch(() => {});
+  }, [orgId]);
+
+  function hasModPerm(modType: string): boolean {
+    return permissions.some((p: any) => p.moduleType === modType && p.canView);
+  }
 
   async function fetchReports() {
     try {
@@ -101,9 +110,9 @@ function ReportsContent() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview" className="gap-2"><BarChart3 className="h-4 w-4" /> Overview</TabsTrigger>
-          <TabsTrigger value="surveys" className="gap-2"><FileSpreadsheet className="h-4 w-4" /> General Surveys</TabsTrigger>
-          <TabsTrigger value="anonymous" className="gap-2"><Eye className="h-4 w-4" /> Anonymous</TabsTrigger>
-          <TabsTrigger value="cases" className="gap-2"><FileBarChart className="h-4 w-4" /> Cases</TabsTrigger>
+          {hasModPerm("GENERAL_SURVEY") && <TabsTrigger value="surveys" className="gap-2"><FileSpreadsheet className="h-4 w-4" /> General Surveys</TabsTrigger>}
+          {hasModPerm("ANONYMOUS_SURVEY") && <TabsTrigger value="anonymous" className="gap-2"><Eye className="h-4 w-4" /> Anonymous</TabsTrigger>}
+          {hasModPerm("WHISTLEBLOWING") && <TabsTrigger value="cases" className="gap-2"><FileBarChart className="h-4 w-4" /> Cases</TabsTrigger>}
           <TabsTrigger value="trends" className="gap-2"><LineChart className="h-4 w-4" /> Trends</TabsTrigger>
         </TabsList>
 

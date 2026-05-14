@@ -170,9 +170,15 @@ export default function CaseDetailPage() {
               <CardHeader><CardTitle className="text-sm">Attachments</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {caseItem.attachments.map((att: any) => (
-                  <a key={att.id} href={att.fileUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
-                    <Paperclip className="h-3.5 w-3.5" />{att.fileName}</a>
+                  <div key={att.id} className="space-y-1">
+                    <a href={att.fileUrl} download={att.fileName}
+                      className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
+                      <Paperclip className="h-3.5 w-3.5" />{att.fileName} ({Math.round(att.fileSize / 1024)}KB)
+                    </a>
+                    {att.fileUrl?.startsWith("data:image") && (
+                      <img src={att.fileUrl} alt={att.fileName} className="max-h-32 rounded border mt-1" />
+                    )}
+                  </div>
                 ))}
               </CardContent>
             </Card>

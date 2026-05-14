@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Copy, Trash2, Download, Edit3 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { exportToCSV } from "@/lib/export";
 import { toast } from "sonner";
@@ -83,6 +83,7 @@ function AnonSurveyDetailContent() {
         actions={
           <div className="flex gap-2">
             {responses.length > 0 && <Button variant="outline" size="sm" onClick={exportAnonResponses} className="gap-1"><Download className="h-4 w-4" /> Export CSV</Button>}
+            {survey.status === "DRAFT" && <Link href={`/dashboard/anonymous-surveys/${survey.id}/edit`}><Button variant="outline" size="sm" className="gap-1"><Edit3 className="h-4 w-4" /> Edit</Button></Link>}
             <Button variant="outline" size="sm" onClick={copyLink} className="gap-1"><Copy className="h-4 w-4" /> Copy Link</Button>
             <Button variant="outline" size="sm" onClick={deleteSurvey} className="gap-1 text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
             <Link href="/dashboard/anonymous-surveys"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" /> Back</Button></Link>
