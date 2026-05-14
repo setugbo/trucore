@@ -432,7 +432,7 @@ function AdminContent() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={u.isActive ? "success" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
-                        <span className="text-xs text-muted-foreground">{u.memberships?.length || 0} org(s)</span>
+                        <span className="text-xs text-muted-foreground">{u.membership ? 1 : 0} org(s)</span>
                         {u.role === "SYSTEM_ADMIN" && <Badge variant="default">Super Admin</Badge>}
                       </div>
                     </div>

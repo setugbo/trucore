@@ -89,20 +89,6 @@ function SettingsContent() {
     finally { setSaving(false); }
   }
 
-  async function toggleModule(moduleId: string, isEnabled: boolean) {
-    try {
-      const res = await fetch("/api/modules", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationModuleId: moduleId, isEnabled }),
-      });
-      if (res.ok) {
-        toast.success("Module updated");
-        fetchModules();
-      }
-    } catch { toast.error("Failed to update"); }
-  }
-
   async function sendInvite() {
     if (!inviteEmail || !orgId) { toast.error("Enter an email address"); return; }
     setInviting(true);
@@ -195,26 +181,6 @@ function SettingsContent() {
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 <Save className="h-4 w-4" /> Save Branding
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="modules">
-          <Card>
-            <CardHeader>
-              <CardTitle>Module Management</CardTitle>
-              <CardDescription>Enable or disable modules for your organization</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {modules.map((mod: any) => (
-                <div key={mod.id} className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <div className="font-medium">{mod.module.name}</div>
-                    <div className="text-sm text-muted-foreground">{mod.module.description}</div>
-                  </div>
-                  <Switch checked={mod.isEnabled} onCheckedChange={(v) => toggleModule(mod.id, v)} />
-                </div>
-              ))}
             </CardContent>
           </Card>
         </TabsContent>

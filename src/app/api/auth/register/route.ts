@@ -55,13 +55,6 @@ export async function POST(request: Request) {
         data: { userId: user.id, organizationId: organization.id, roleId: superAdminRole!.id },
       });
 
-      const modules = await tx.module.findMany();
-      for (const mod of modules) {
-        await tx.organizationModule.create({
-          data: { organizationId: organization.id, moduleId: mod.id, isEnabled: true },
-        });
-      }
-
       await tx.brandingConfig.create({
         data: { organizationId: organization.id },
       });

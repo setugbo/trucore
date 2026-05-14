@@ -38,30 +38,11 @@ export async function getOrgContext(organizationId?: string) {
 
   const userId = (session.user as any).id;
 
-  if (organizationId) {
-    const membership = await prisma.membership.findUnique({
-      where: { userId },
-      include: {
-        role: {
-          include: { permissions: { include: { module: true } } },
-        },
-        organization: true,
-      },
-    });
-    return membership;
-  }
-
-  const memberships = await prisma.membership.findMany({
+  const membership = await prisma.membership.findUnique({
     where: { userId },
-    include: {
-      role: {
-        include: { permissions: { include: { module: true } } },
-      },
-      organization: true,
-    },
+    include: { role: true, organization: true },
   });
-
-  return memberships;
+  return membership;
 }
 
 export async function checkPermission(
@@ -77,10 +58,7 @@ export async function checkPermission(
   if (membership.role.type === "SYSTEM_ADMIN" || membership.role.type === "MODULE_ADMIN") {
     return true;
   }
-
-  return membership.role.permissions.some(
-    (p) => p.module.type === moduleType && p[permission]
-  );
+  return false;
 }
 
 export async function createAuditLog(params: {

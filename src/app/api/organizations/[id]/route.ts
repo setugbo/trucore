@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const org = await prisma.organization.findUnique({
       where: { id: params.id },
-      include: { branding: true, modules: { include: { module: true } } },
+      include: { branding: true },
     });
     if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(org);
