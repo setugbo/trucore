@@ -17,7 +17,15 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     });
     if (!caseItem) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(caseItem);
+
+    // Fetch audit trail for this case
+    const auditTrail = await prisma.auditLog.findMany({
+      where: { OR: [{ entityId: caseItem.caseId }, { entityId: params.id }] },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return NextResponse.json({ ...caseItem, auditTrail });
   } catch (error) {
     console.error("Case fetch error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

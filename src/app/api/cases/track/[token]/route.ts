@@ -17,6 +17,12 @@ export async function GET(request: Request, { params }: { params: { token: strin
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const auditTrail = await prisma.auditLog.findMany({
+      where: { OR: [{ entityId: caseItem.caseId }, { entityId: caseItem.id }] },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
     // Only expose safe fields
     return NextResponse.json({
       caseId: caseItem.caseId,
@@ -26,8 +32,11 @@ export async function GET(request: Request, { params }: { params: { token: strin
       category: caseItem.category,
       createdAt: caseItem.createdAt,
       updatedAt: caseItem.updatedAt,
+      reporterName: caseItem.reporterName,
+      reporterEmail: caseItem.reporterEmail,
       messages: caseItem.messages,
       attachments: caseItem.attachments,
+      auditTrail,
     });
   } catch (error) {
     console.error("Track case error:", error);

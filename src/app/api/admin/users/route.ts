@@ -94,3 +94,22 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const membership = (session.user as any)?.membership;
+    if (membership?.role?.type !== "SYSTEM_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { userId } = await request.json();
+    if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    if (userId === (session.user as any).id) return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
+
+    await prisma.user.delete({ where: { id: userId } });
+    return NextResponse.json({ message: "User deleted" });
+  } catch (error) {
+    console.error("Admin delete user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

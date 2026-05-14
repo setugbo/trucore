@@ -107,6 +107,12 @@ export default function TrackPage() {
                   <div><span className="text-muted-foreground">Priority</span><p className="font-medium capitalize">{caseItem.priority}</p></div>
                   <div><span className="text-muted-foreground">Submitted</span><p className="font-medium">{formatDateTime(caseItem.createdAt)}</p></div>
                 </div>
+                {(caseItem.reporterName || caseItem.reporterEmail) && (
+                  <div className="mt-4 pt-4 border-t text-sm space-y-1">
+                    {caseItem.reporterName && <div><span className="text-muted-foreground">Submitted by</span><p className="font-medium">{caseItem.reporterName}</p></div>}
+                    {caseItem.reporterEmail && <div><span className="text-muted-foreground">Contact email</span><p className="font-medium">{caseItem.reporterEmail}</p></div>}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -149,6 +155,30 @@ export default function TrackPage() {
                       📎 {att.fileName}
                     </a>
                   ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Case History */}
+            {caseItem.auditTrail && (
+              <Card>
+                <CardHeader><CardTitle>Case History</CardTitle></CardHeader>
+                <CardContent>
+                  {caseItem.auditTrail.length > 0 ? (
+                    <div className="space-y-3">
+                      {caseItem.auditTrail.map((entry: any, idx: number) => (
+                        <div key={idx} className="text-sm space-y-1 pb-3 border-b last:border-0 last:pb-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium capitalize">{entry.action}</span>
+                            <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
+                          </div>
+                          {entry.user?.name && <p className="text-xs text-muted-foreground">by {entry.user.name}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No history events yet</p>
+                  )}
                 </CardContent>
               </Card>
             )}

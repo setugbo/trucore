@@ -73,25 +73,26 @@ export async function POST(request: Request) {
       },
     });
 
-    // Handle file uploads
+    // Handle file uploads with graceful fallback
+    let uploadedCount = 0;
     for (const file of evidenceFiles) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const ext = file.name.split(".").pop();
-      const filename = `${uuid()}.${ext}`;
-      const uploadDir = join(process.cwd(), "public", "uploads", "evidence");
-      await mkdir(uploadDir, { recursive: true });
-      await writeFile(join(uploadDir, filename), buffer);
+      try {
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const ext = file.name.split(".").pop();
+        const filename = `${uuid()}.${ext}`;
+        const uploadDir = join(process.cwd(), "public", "uploads", "evidence");
+        await mkdir(uploadDir, { recursive: true });
+        await writeFile(join(uploadDir, filename), buffer);
 
-      await prisma.caseAttachment.create({
-        data: {
-          caseId: caseItem.id,
-          fileName: file.name,
-          fileUrl: `/uploads/evidence/${filename}`,
-          fileSize: file.size,
-          mimeType: file.type || null,
-        },
-      });
+        await prisma.caseAttachment.create({
+          data: { caseId: caseItem.id, fileName: file.name, fileUrl: `/uploads/evidence/${filename}`, fileSize: file.size, mimeType: file.type || null },
+        });
+        uploadedCount++;
+      } catch (fileError) {
+        console.error("File upload failed for", file.name, ":", fileError);
+        // Continue without the file - don't block the submission
+      }
     }
 
     return NextResponse.json({

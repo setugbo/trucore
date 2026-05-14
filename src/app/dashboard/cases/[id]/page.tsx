@@ -123,9 +123,11 @@ export default function CaseDetailPage() {
               <div><span className="text-xs text-muted-foreground">Priority</span><Badge variant="outline">{caseItem.priority}</Badge></div>
               <div><span className="text-xs text-muted-foreground">Submitted</span><p className="text-sm">{formatDateTime(caseItem.createdAt)}</p></div>
               <div><span className="text-xs text-muted-foreground">Type</span><p className="text-sm">{caseItem.isAnonymous ? "Anonymous" : "Identified"}</p></div>
-              {caseItem.reporterToken && caseItem.isAnonymous && (
+              {caseItem.reporterToken && (
                 <div><span className="text-xs text-muted-foreground">Tracking Code</span><p className="text-sm font-mono text-brand-600 select-all">{caseItem.reporterToken}</p></div>
               )}
+              {caseItem.reporterName && <div><span className="text-xs text-muted-foreground">Reporter Name</span><p className="text-sm">{caseItem.reporterName}</p></div>}
+              {caseItem.reporterEmail && <div><span className="text-xs text-muted-foreground">Reporter Email</span><p className="text-sm">{caseItem.reporterEmail}</p></div>}
               {caseItem.assignedTo && <div><span className="text-xs text-muted-foreground">Assigned To</span><p className="text-sm">{caseItem.assignedTo.name}</p></div>}
               <div className="pt-4 border-t space-y-3">
                 <span className="text-xs text-muted-foreground">Update Status</span>
@@ -141,6 +143,26 @@ export default function CaseDetailPage() {
                 </Select>
                 <Button size="sm" className="w-full" onClick={updateStatus}>Update</Button>
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Case Audit Trail</CardTitle></CardHeader>
+            <CardContent>
+              {caseItem.auditTrail?.length > 0 ? (
+                <div className="space-y-3">
+                  {caseItem.auditTrail.map((entry: any, idx: number) => (
+                    <div key={idx} className="text-sm space-y-1 pb-3 border-b last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">{entry.action}</span>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
+                      </div>
+                      {entry.user?.name && <p className="text-xs text-muted-foreground">by {entry.user.name}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No audit events yet</p>
+              )}
             </CardContent>
           </Card>
           {caseItem.attachments?.length > 0 && (

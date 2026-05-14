@@ -116,6 +116,18 @@ function AdminContent() {
     } catch { toast.error("Failed"); }
   }
 
+  async function deleteUser(userId: string, name: string) {
+    if (!confirm(`Permanently delete user "${name}"? This cannot be undone.`)) return;
+    try {
+      const r = await fetch(`/api/admin/users`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (r.ok) { toast.success("User deleted"); fetchUsers(); }
+      else { const e = await r.json(); toast.error(e.error || "Failed"); }
+    } catch { toast.error("Failed"); }
+  }
+
   async function changeUserRole(userId: string, newRole: string) {
     try {
       const r = await fetch("/api/admin/users", {
@@ -196,6 +208,9 @@ function AdminContent() {
                             {u.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                           </Button>
                           <Badge variant={u.isActive ? "success" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
+                          <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => deleteUser(u.id, u.name || u.email)} title="Delete user">
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
