@@ -19,14 +19,17 @@ import {
   ChevronLeft,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const sidebarItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "General Surveys", href: "/dashboard/general-surveys", icon: ClipboardList },
-  { title: "Anonymous Surveys", href: "/dashboard/anonymous-surveys", icon: EyeOff },
-  { title: "Whistleblowing", href: "/dashboard/cases", icon: Shield },
   { title: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+];
+
+const moduleItems = [
+  { title: "General Surveys", href: "/dashboard/general-surveys", icon: ClipboardList, module: "GENERAL_SURVEY" },
+  { title: "Anonymous Surveys", href: "/dashboard/anonymous-surveys", icon: EyeOff, module: "ANONYMOUS_SURVEY" },
+  { title: "Whistleblowing", href: "/dashboard/cases", icon: Shield, module: "WHISTLEBLOWING" },
 ];
 
 const bottomItems = [
@@ -39,6 +42,21 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
+  const [permissions, setPermissions] = useState<any[]>([]);
+  const [role, setRole] = useState<string>("");
+  const [permLoading, setPermLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/permissions").then(r => r.json()).then(data => {
+      setPermissions(data.permissions || []);
+      setRole(data.role || "");
+      setPermLoading(false);
+    }).catch(() => setPermLoading(false));
+  }, []);
+
+  function hasModulePermission(moduleType: string): boolean {
+    return permissions.some(p => p.moduleType === moduleType && p.canView);
+  }
 
   const membership = (session?.user as any)?.membership;
   const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
@@ -71,6 +89,28 @@ export function Sidebar() {
       <ScrollArea className="flex-1 px-2 py-4">
         <nav className="flex flex-col gap-1">
           {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  size={collapsed ? "icon" : "default"}
+                  className={cn(
+                    "w-full justify-start gap-3 font-normal",
+                    collapsed && "justify-center px-0",
+                    isActive && "bg-sidebar-accent font-medium"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span>{item.title}</span>}
+                </Button>
+              </Link>
+            );
+          })}
+
+          {!permLoading && moduleItems.map((item) => {
+            if (!hasModulePermission(item.module)) return null;
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (

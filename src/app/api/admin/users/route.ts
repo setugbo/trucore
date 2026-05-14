@@ -17,7 +17,7 @@ export async function GET() {
     const users = await prisma.user.findMany({
       select: {
         id: true, name: true, email: true, isActive: true, createdAt: true,
-        membership: { select: { organizationId: true, role: { select: { name: true, type: true } } } },
+        membership: { select: { organizationId: true, role: { select: { id: true, name: true, type: true } } } },
       },
       orderBy: { createdAt: "desc" },
       take: 200,
@@ -64,6 +64,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "User created", userId: user.id }, { status: 201 });
   } catch (error) {
     console.error("Admin create user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const membership = (session.user as any)?.membership;
+    if (membership?.role?.type !== "SYSTEM_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { userId, isActive, roleType } = await request.json();
+    if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+
+    if (isActive !== undefined) {
+      await prisma.user.update({ where: { id: userId }, data: { isActive } });
+    }
+
+    if (roleType) {
+      const targetRole = await prisma.role.findUnique({ where: { type: roleType } });
+      if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 400 });
+      await prisma.membership.update({ where: { userId }, data: { roleId: targetRole.id } });
+    }
+
+    return NextResponse.json({ message: "User updated" });
+  } catch (error) {
+    console.error("Admin update user error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
