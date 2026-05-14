@@ -30,6 +30,19 @@ export async function GET() {
     const maRole = roles.find((r: any) => r.type === "MODULE_ADMIN")!;
     const vRole = roles.find((r: any) => r.type === "VIEWER")!;
 
+    // Seed modules
+    const moduleTypes = ["GENERAL_SURVEY", "ANONYMOUS_SURVEY", "WHISTLEBLOWING"];
+    const moduleNames = ["General Surveys", "Anonymous Surveys", "Whistleblowing"];
+    const moduleDescs = ["Standard internal surveys", "Anonymous feedback collection", "Confidential whistleblowing reports"];
+
+    let modules = await prisma.module.findMany();
+    if (modules.length === 0) {
+      for (let i = 0; i < 3; i++) {
+        await prisma.module.create({ data: { type: moduleTypes[i], name: moduleNames[i], description: moduleDescs[i] } });
+      }
+      modules = await prisma.module.findMany();
+    }
+
     const pw = await bcrypt.hash("Inspire@2026", 12);
     const crypto = require("crypto");
 
@@ -46,16 +59,31 @@ export async function GET() {
       data: { name: "System Administrator", email: "trucore@itadvisoryprojects.com.ng", password: pw, isActive: true },
     });
     await prisma.membership.create({ data: { userId: admin.id, organizationId: org.id, roleId: saRole.id } });
+    for (const mod of modules) {
+      await prisma.userModulePermission.create({
+        data: { userId: admin.id, organizationId: org.id, moduleId: mod.id, canView: true, canCreate: true, canEdit: true, canDelete: true }
+      });
+    }
 
     const modAdmin = await prisma.user.create({
       data: { name: "Module Manager", email: "module@trucore.com", password: pw, isActive: true },
     });
     await prisma.membership.create({ data: { userId: modAdmin.id, organizationId: org.id, roleId: maRole.id } });
+    for (const mod of modules) {
+      await prisma.userModulePermission.create({
+        data: { userId: modAdmin.id, organizationId: org.id, moduleId: mod.id, canView: true, canCreate: true, canEdit: true, canDelete: true }
+      });
+    }
 
     const viewer = await prisma.user.create({
       data: { name: "Report Viewer", email: "viewer@trucore.com", password: pw, isActive: true },
     });
     await prisma.membership.create({ data: { userId: viewer.id, organizationId: org.id, roleId: vRole.id } });
+    for (const mod of modules) {
+      await prisma.userModulePermission.create({
+        data: { userId: viewer.id, organizationId: org.id, moduleId: mod.id, canView: true, canCreate: false, canEdit: false, canDelete: false }
+      });
+    }
 
     // === GENERAL SURVEYS ===
     const s1 = await prisma.generalSurvey.create({

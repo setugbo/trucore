@@ -123,6 +123,9 @@ export default function CaseDetailPage() {
               <div><span className="text-xs text-muted-foreground">Priority</span><Badge variant="outline">{caseItem.priority}</Badge></div>
               <div><span className="text-xs text-muted-foreground">Submitted</span><p className="text-sm">{formatDateTime(caseItem.createdAt)}</p></div>
               <div><span className="text-xs text-muted-foreground">Type</span><p className="text-sm">{caseItem.isAnonymous ? "Anonymous" : "Identified"}</p></div>
+              {caseItem.reporterToken && caseItem.isAnonymous && (
+                <div><span className="text-xs text-muted-foreground">Tracking Code</span><p className="text-sm font-mono text-brand-600 select-all">{caseItem.reporterToken}</p></div>
+              )}
               {caseItem.assignedTo && <div><span className="text-xs text-muted-foreground">Assigned To</span><p className="text-sm">{caseItem.assignedTo.name}</p></div>}
               <div className="pt-4 border-t space-y-3">
                 <span className="text-xs text-muted-foreground">Update Status</span>

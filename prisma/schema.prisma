@@ -54,6 +54,7 @@ model Organization {
 
   users        Membership[]
   branding     BrandingConfig?
+  modulePermissions UserModulePermission[]
   surveys      GeneralSurvey[]
   anonymousSurveys AnonymousSurvey[]
   cases        Case[]
@@ -81,6 +82,7 @@ model User {
   notifications   Notification[]
   assignedCases   Case[]        @relation("assignedCases")
   caseMessages    CaseMessage[]
+  modulePermissions UserModulePermission[]
 }
 
 model Account {
@@ -216,6 +218,38 @@ model GeneralSurveyResponse {
   answers GeneralSurveyAnswer[]
 
   @@index([surveyId])
+}
+
+
+model Module {
+  id        String   @id @default(cuid())
+  type      String   @unique
+  name      String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions UserModulePermission[]
+}
+
+model UserModulePermission {
+  id             String  @id @default(cuid())
+  userId         String
+  organizationId String
+  moduleId       String
+  canView        Boolean @default(false)
+  canCreate      Boolean @default(false)
+  canEdit        Boolean @default(false)
+  canDelete      Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module       Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, moduleId])
+  @@index([userId])
+  @@index([organizationId])
 }
 
 model GeneralSurveyAnswer {
