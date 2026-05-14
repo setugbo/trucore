@@ -64,13 +64,18 @@ export default function HomePage() {
       <header className="fixed top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Logo />
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="/whistleblowing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Whistleblowing</Link>
+            <Link href="/track" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Track a Report</Link>
+            <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Sign In</Link>
+          </nav>
           <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button variant="ghost">Sign in</Button>
+              <Button variant="ghost" className="hidden sm:inline-flex">Sign in</Button>
             </Link>
             <Link href="/register">
-                <Button>Request Access</Button>
-              </Link>
+              <Button size="sm">Request Access</Button>
+            </Link>
           </div>
         </div>
       </header>

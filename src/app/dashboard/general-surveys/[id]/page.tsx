@@ -123,7 +123,18 @@ function SurveyDetailContent() {
                   <CardContent>
                     <div className="space-y-2">
                       {response.answers?.map((answer: any) => (
-                        <div key={answer.id} className="text-sm"><span className="font-medium">{answer.question?.title}: </span><span className="text-muted-foreground">{answer.value}</span></div>
+                        <div key={answer.id} className="text-sm">
+                          <span className="font-medium">{answer.question?.title}: </span>
+                          {answer.value?.startsWith("data:") ? (
+                            answer.value?.startsWith("data:image") ? (
+                              <img src={answer.value} alt="Uploaded file" className="mt-1 max-h-48 rounded-lg border" />
+                            ) : (
+                              <a href={answer.value} download className="text-brand-600 hover:underline">Download Attachment</a>
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">{answer.value}</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </CardContent>

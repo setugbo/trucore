@@ -37,11 +37,13 @@ export function renderInviteEmail({
   orgName,
   inviterName,
   inviteLink,
+  email,
   password,
 }: {
   orgName: string;
   inviterName: string;
   inviteLink: string;
+  email: string;
   password?: string;
 }) {
   return `
@@ -60,8 +62,9 @@ export function renderInviteEmail({
         ${password ? `
         <div style="background:#F3F4F6;border-radius:8px;padding:16px;margin:16px 0;">
           <p style="color:#374151;font-size:14px;font-weight:500;margin:0 0 8px;">Your temporary login credentials:</p>
-          <p style="font-family:monospace;font-size:14px;background:#1e293b;color:#e2e8f0;padding:10px 14px;border-radius:6px;margin:0;word-break:break-all;">
-            Email: <span style="color:#a78bfa">${inviteLink.split('?')[0].replace('/login','')}</span><br>
+          <p style="font-family:monospace;font-size:14px;background:#1e293b;color:#e2e8f0;padding:10px 14px;border-radius:6px;margin:0;">
+            Login URL: <span style="color:#a78bfa">${inviteLink}</span><br>
+            Email: <span style="color:#a78bfa">${email}</span><br>
             Password: <span style="color:#a78bfa">${password}</span>
           </p>
         </div>

@@ -128,7 +128,7 @@ export default function WhistleblowingPage() {
             </div>
             <p className="text-xs text-muted-foreground">Save this code. You need it to track your report.</p>
             <div className="flex gap-2">
-              <Link href={`/track/${accessToken}`} className="flex-1"><Button className="w-full gap-2"><Search className="h-4 w-4" /> Track My Report</Button></Link>
+              <Link href="/track" className="flex-1"><Button className="w-full gap-2"><Search className="h-4 w-4" /> Track My Report</Button></Link>
               <Button variant="outline" className="flex-1" onClick={() => setMode("landing")}>Submit Another</Button>
             </div>
           </CardContent>

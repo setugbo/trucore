@@ -144,21 +144,6 @@ export default function TrackPage() {
               </CardContent>
             </Card>
 
-            {/* Evidence */}
-            {caseItem.attachments?.length > 0 && (
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Attached Evidence</CardTitle></CardHeader>
-                <CardContent>
-                  {caseItem.attachments.map((att: any) => (
-                    <a key={att.id} href={att.fileUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-brand-600 hover:underline">
-                      📎 {att.fileName}
-                    </a>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
             {/* Case History */}
             {caseItem.auditTrail && (
               <Card>

@@ -69,6 +69,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           orgName: org?.name || "the organization",
           inviterName: (session.user as any).name || "An administrator",
           inviteLink: `${process.env.NEXT_PUBLIC_APP_URL || "https://trucore.vercel.app"}/login`,
+          email: email,
           password: invitePassword,
         }),
       });
