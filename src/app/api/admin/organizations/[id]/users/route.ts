@@ -75,6 +75,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
       });
     } catch (e) { console.error("Invite email failed (SMTP may not be configured):", e); }
 
+    // Create default module permissions based on role
+    const modules = await prisma.module.findMany();
+    for (const mod of modules) {
+      const isAdmin = targetRole.type === "SYSTEM_ADMIN" || targetRole.type === "MODULE_ADMIN";
+      await prisma.userModulePermission.upsert({
+        where: { userId_organizationId_moduleId: { userId: user.id, organizationId: params.id, moduleId: mod.id } },
+        update: {},
+        create: { userId: user.id, organizationId: params.id, moduleId: mod.id, canView: true, canCreate: isAdmin, canEdit: isAdmin, canDelete: isAdmin },
+      });
+    }
+
     // Audit log
     await prisma.auditLog.create({
       data: { organizationId: params.id, userId: (session.user as any).id, action: "INVITE_USER", entityType: "User", entityId: user.id, metadata: JSON.stringify({ email, role: targetRole.name }) },

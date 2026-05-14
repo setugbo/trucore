@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// GET - Get all user module permissions
+// GET - Get all permissions for admin view
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -14,20 +14,14 @@ export async function GET() {
     if (membership?.role?.type !== "SYSTEM_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const perms = await prisma.userModulePermission.findMany({
+      where: { organizationId: membership.organizationId },
       include: { module: true, user: { select: { id: true, name: true, email: true } } },
     });
 
     return NextResponse.json(perms.map((p) => ({
-      id: p.id,
-      userId: p.userId,
-      userName: p.user.name,
-      userEmail: p.user.email,
-      moduleType: p.module.type,
-      moduleName: p.module.name,
-      canView: p.canView,
-      canCreate: p.canCreate,
-      canEdit: p.canEdit,
-      canDelete: p.canDelete,
+      id: p.id, userId: p.userId, userName: p.user.name, userEmail: p.user.email,
+      moduleType: p.module.type, moduleName: p.module.name,
+      canView: p.canView, canCreate: p.canCreate, canEdit: p.canEdit, canDelete: p.canDelete,
     })));
   } catch (error) {
     console.error("Permissions fetch error:", error);
@@ -35,7 +29,7 @@ export async function GET() {
   }
 }
 
-// PUT - Update a user's module permission
+// PUT - Create or update a permission
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -49,13 +43,20 @@ export async function PUT(request: Request) {
 
     const orgId = membership.organizationId;
     const mod = await prisma.module.findUnique({ where: { type: moduleType } });
-    if (!mod) return NextResponse.json({ error: "Module not found" }, { status: 400 });
+    if (!mod) return NextResponse.json({ error: "Module not found in database. Run seed-demo first." }, { status: 400 });
 
-    // Upsert the permission
     const perm = await prisma.userModulePermission.upsert({
       where: { userId_organizationId_moduleId: { userId, organizationId: orgId, moduleId: mod.id } },
-      update: { ...(canView !== undefined && { canView }), ...(canCreate !== undefined && { canCreate }), ...(canEdit !== undefined && { canEdit }), ...(canDelete !== undefined && { canDelete }) },
-      create: { userId, organizationId: orgId, moduleId: mod.id, canView: canView || false, canCreate: canCreate || false, canEdit: canEdit || false, canDelete: canDelete || false },
+      update: {
+        ...(canView !== undefined && { canView }),
+        ...(canCreate !== undefined && { canCreate }),
+        ...(canEdit !== undefined && { canEdit }),
+        ...(canDelete !== undefined && { canDelete }),
+      },
+      create: {
+        userId, organizationId: orgId, moduleId: mod.id,
+        canView: canView || false, canCreate: canCreate || false, canEdit: canEdit || false, canDelete: canDelete || false,
+      },
     });
 
     return NextResponse.json(perm);
