@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateCaseId, generateReportToken } from "@/lib/utils";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { v4 as uuid } from "uuid";
 
 export const dynamic = "force-dynamic";
@@ -73,25 +71,26 @@ export async function POST(request: Request) {
       },
     });
 
-    // Handle file uploads with graceful fallback
+    // Handle file uploads - store as base64 in DB for Vercel compatibility
     let uploadedCount = 0;
     for (const file of evidenceFiles) {
       try {
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
+        if (file.size > MAX_SIZE) {
+          console.warn("File too large, skipping:", file.name);
+          continue;
+        }
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const ext = file.name.split(".").pop();
-        const filename = `${uuid()}.${ext}`;
-        const uploadDir = join(process.cwd(), "public", "uploads", "evidence");
-        await mkdir(uploadDir, { recursive: true });
-        await writeFile(join(uploadDir, filename), buffer);
+        const base64 = buffer.toString("base64");
+        const dataUrl = `data:${file.type || "application/octet-stream"};base64,${base64}`;
 
         await prisma.caseAttachment.create({
-          data: { caseId: caseItem.id, fileName: file.name, fileUrl: `/uploads/evidence/${filename}`, fileSize: file.size, mimeType: file.type || null },
+          data: { caseId: caseItem.id, fileName: file.name, fileUrl: dataUrl, fileSize: file.size, mimeType: file.type || null },
         });
         uploadedCount++;
       } catch (fileError) {
         console.error("File upload failed for", file.name, ":", fileError);
-        // Continue without the file - don't block the submission
       }
     }
 
