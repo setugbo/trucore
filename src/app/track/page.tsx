@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/shared/logo";
 import { Loading } from "@/components/shared/loading";
 import { toast } from "sonner";
-import { Search, Shield, Clock, CheckCircle, AlertTriangle, MessageSquare, Loader2, ArrowLeft } from "lucide-react";
+import { Search, Shield, Clock, CheckCircle, AlertTriangle, MessageSquare, Loader2, ArrowLeft, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import { CASE_STATUS_COLORS } from "@/lib/constants";
@@ -19,6 +20,8 @@ export default function TrackPage() {
   const [caseItem, setCaseItem] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -31,6 +34,29 @@ export default function TrackPage() {
       else setCaseItem(null);
     } catch { setCaseItem(null); }
     finally { setLoading(false); }
+  }
+
+  async function sendMessage() {
+    if (!message.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/cases/track/${token.trim()}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: message.trim() }),
+      });
+      if (res.ok) {
+        toast.success("Message sent");
+        setMessage("");
+        // Refresh case data to see the new message
+        const refresh = await fetch(`/api/cases/track/${token.trim()}`);
+        if (refresh.ok) setCaseItem(await refresh.json());
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to send message");
+      }
+    } catch { toast.error("Failed to send message"); }
+    finally { setSending(false); }
   }
 
   const statusIcon = (status: string) => {
@@ -123,11 +149,11 @@ export default function TrackPage() {
                   <MessageSquare className="h-5 w-5 text-brand-600" />
                   <CardTitle>Case Updates</CardTitle>
                 </div>
-                <CardDescription>Communications from the review team</CardDescription>
+                <CardDescription>Communications between you and the review team</CardDescription>
               </CardHeader>
               <CardContent>
                 {caseItem.messages?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No updates yet. Check back later.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No messages yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {caseItem.messages?.map((msg: any) => (
@@ -140,6 +166,30 @@ export default function TrackPage() {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {/* Reply Input */}
+                {caseItem.status !== "CLOSED" && caseItem.status !== "RESOLVED" && (
+                  <div className="mt-6 pt-4 border-t">
+                    <Label htmlFor="reply" className="text-sm font-medium mb-2 block">Send a message to the review team</Label>
+                    <div className="flex gap-2">
+                      <Textarea
+                        id="reply"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type your message..."
+                        className="min-h-[60px]"
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                      />
+                      <Button onClick={sendMessage} disabled={sending || !message.trim()} size="icon" className="self-end">
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {(caseItem.status === "CLOSED" || caseItem.status === "RESOLVED") && (
+                  <p className="text-xs text-muted-foreground text-center mt-4">This case is {caseItem.status === "CLOSED" ? "closed" : "resolved"}. Messaging is disabled.</p>
                 )}
               </CardContent>
             </Card>
