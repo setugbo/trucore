@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Trash2, Download, Edit3 } from "lucide-react";
+import { ArrowLeft, Copy, Trash2, Download, Edit3, Files } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { exportToCSV } from "@/lib/export";
 import { toast } from "sonner";
@@ -43,6 +43,24 @@ function AnonSurveyDetailContent() {
     if (!survey?.publicLink) { toast.error("No link available"); return; }
     await navigator.clipboard.writeText(`${window.location.origin}/survey/anonymous/${survey.publicLink}`);
     toast.success("Link copied!");
+  }
+
+  async function duplicateSurvey() {
+    try {
+      const res = await fetch("/api/anonymous-surveys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: survey.organizationId, title: survey.title + " (copy)", description: survey.description,
+          category: survey.category, formStyle: survey.formStyle,
+          questions: survey.questions?.map((q: any, i: number) => ({
+            type: q.type, title: q.title, description: q.description, required: q.required, order: i, options: q.options,
+          })) || [],
+        }),
+      });
+      if (res.ok) { const data = await res.json(); toast.success("Survey duplicated"); router.push(`/dashboard/anonymous-surveys/${data.id}/edit`); }
+      else { const err = await res.json(); toast.error(err.error || "Failed"); }
+    } catch { toast.error("Failed to duplicate"); }
   }
 
   async function deleteSurvey() {
@@ -84,6 +102,7 @@ function AnonSurveyDetailContent() {
           <div className="flex gap-2">
             {responses.length > 0 && <Button variant="outline" size="sm" onClick={exportAnonResponses} className="gap-1"><Download className="h-4 w-4" /> Export CSV</Button>}
             {survey.status === "DRAFT" && <Link href={`/dashboard/anonymous-surveys/${survey.id}/edit`}><Button variant="outline" size="sm" className="gap-1"><Edit3 className="h-4 w-4" /> Edit</Button></Link>}
+            <Button variant="outline" size="sm" onClick={duplicateSurvey} className="gap-1"><Files className="h-4 w-4" /> Duplicate</Button>
             <Button variant="outline" size="sm" onClick={copyLink} className="gap-1"><Copy className="h-4 w-4" /> Copy Link</Button>
             <Button variant="outline" size="sm" onClick={deleteSurvey} className="gap-1 text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
             <Link href="/dashboard/anonymous-surveys"><Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" /> Back</Button></Link>

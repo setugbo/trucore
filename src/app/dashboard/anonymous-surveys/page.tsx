@@ -70,7 +70,7 @@ function AnonymousSurveysPageContent() {
           })) || [],
         }),
       });
-      if (res.ok) { toast.success("Survey duplicated"); fetchSurveys(); }
+      if (res.ok) { const data = await res.json(); toast.success("Survey duplicated"); router.push(`/dashboard/anonymous-surveys/${data.id}/edit`); }
       else { const err = await res.json(); toast.error(err.error || "Failed"); }
     } catch { toast.error("Failed to duplicate"); }
   }
