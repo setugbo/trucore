@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Loading } from "@/components/shared/loading";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Send, Paperclip } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { CASE_STATUS_COLORS } from "@/lib/constants";
 import { toast } from "sonner";
@@ -18,10 +19,14 @@ import Link from "next/link";
 export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const membership = (session?.user as any)?.membership;
+  const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
   const [caseItem, setCaseItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchCase(); }, [params.id]);
 
@@ -58,6 +63,17 @@ export default function CaseDetailPage() {
       });
       if (res.ok) { toast.success("Status updated"); fetchCase(); }
     } catch { toast.error("Failed to update status"); }
+  }
+
+  async function deleteCase() {
+    if (!confirm("Delete this case permanently? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/cases/${params.id}`, { method: "DELETE" });
+      if (res.ok) { toast.success("Case deleted"); router.push("/dashboard/cases"); }
+      else { const err = await res.json(); toast.error(err.error || "Failed to delete"); }
+    } catch { toast.error("Failed to delete case"); }
+    finally { setDeleting(false); }
   }
 
   if (loading) return <Loading text="Loading case..." />;
@@ -143,6 +159,13 @@ export default function CaseDetailPage() {
                 </Select>
                 <Button size="sm" className="w-full" onClick={updateStatus}>Update</Button>
               </div>
+              {isSuperAdmin && (
+                <div className="pt-4 border-t">
+                  <Button variant="destructive" size="sm" className="w-full gap-2" onClick={deleteCase} disabled={deleting}>
+                    <Trash2 className="h-4 w-4" /> {deleting ? "Deleting..." : "Delete Case"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>

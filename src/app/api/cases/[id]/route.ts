@@ -76,3 +76,25 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const membership = (session.user as any)?.membership;
+    if (membership?.role?.type !== "SYSTEM_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const caseItem = await prisma.case.findUnique({ where: { id: params.id } });
+    if (!caseItem) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await prisma.auditLog.create({
+      data: { organizationId: caseItem.organizationId, userId: (session.user as any).id, action: "DELETE", entityType: "Case", entityId: caseItem.id, metadata: JSON.stringify({ caseId: caseItem.caseId, title: caseItem.title }) },
+    });
+
+    await prisma.case.delete({ where: { id: params.id } });
+    return NextResponse.json({ message: "Case deleted successfully" });
+  } catch (error) {
+    console.error("Case delete error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
