@@ -46,6 +46,17 @@ export const PRIORITY_OPTIONS = [
   { label: "Critical", value: "critical" },
 ];
 
+export const QUESTION_TYPE_GUIDES: Record<string, string> = {
+  SHORT_TEXT: "A single-line text field. Best for short answers like names, emails, or quick responses.",
+  LONG_TEXT: "A multi-line text area. Use for open-ended responses, comments, or detailed feedback.",
+  MULTIPLE_CHOICE: "Respondents pick one option from a list. Ideal for single-selection questions.",
+  CHECKBOX: "Respondents can select multiple options. Use when more than one answer applies.",
+  DROPDOWN: "A compact dropdown menu for single selection. Saves space when you have many options.",
+  RATING_SCALE: "Respondents rate on a numeric scale (e.g., 1-5). Perfect for satisfaction or agreement levels.",
+  FILE_UPLOAD: "Respondents can upload a file. Use for document submissions, images, or evidence.",
+  YES_NO: "A simple binary choice. Best for agreement, confirmation, or boolean questions.",
+};
+
 export const CASE_STATUS_COLORS: Record<string, string> = {
   SUBMITTED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   UNDER_REVIEW: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",

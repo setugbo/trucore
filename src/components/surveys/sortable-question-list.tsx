@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -25,7 +25,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, GripVertical, Copy } from "lucide-react";
+import { Plus, Trash2, GripVertical, Copy, Info } from "lucide-react";
+import { QUESTION_TYPE_GUIDES } from "@/lib/constants";
 
 export interface Question {
   id: string;
@@ -65,6 +66,9 @@ function SortableQuestion({ question, index, onUpdate, onRemove, onDuplicate }: 
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const scaleMin = question.options ? parseInt(question.options.split("-")[0]) || 1 : 1;
+  const scaleMax = question.options ? parseInt(question.options.split("-")[1]) || 5 : 5;
+
   return (
     <Card ref={setNodeRef} style={style} className="premium-card">
       <CardContent className="p-6 space-y-4">
@@ -100,6 +104,13 @@ function SortableQuestion({ question, index, onUpdate, onRemove, onDuplicate }: 
           </div>
         </div>
 
+        {QUESTION_TYPE_GUIDES[question.type] && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{QUESTION_TYPE_GUIDES[question.type]}</span>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label>Question Title *</Label>
           <Input value={question.title} onChange={(e) => onUpdate(question.id, "title", e.target.value)} placeholder="Enter your question..." />
@@ -113,6 +124,28 @@ function SortableQuestion({ question, index, onUpdate, onRemove, onDuplicate }: 
           <div className="space-y-2">
             <Label>Options (one per line)</Label>
             <Textarea value={question.options} onChange={(e) => onUpdate(question.id, "options", e.target.value)} placeholder={`Option 1\nOption 2\nOption 3`} rows={3} />
+          </div>
+        )}
+
+        {question.type === "RATING_SCALE" && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Scale Start</Label>
+              <Input type="number" value={scaleMin} min={0} max={scaleMax - 1}
+                onChange={(e) => {
+                  const min = Math.max(0, parseInt(e.target.value) || 0);
+                  const max = Math.max(min + 1, scaleMax);
+                  onUpdate(question.id, "options", `${min}-${max}`);
+                }} />
+            </div>
+            <div className="space-y-2">
+              <Label>Scale End</Label>
+              <Input type="number" value={scaleMax} min={scaleMin + 1} max={100}
+                onChange={(e) => {
+                  const max = Math.max(scaleMin + 1, parseInt(e.target.value) || (scaleMin + 1));
+                  onUpdate(question.id, "options", `${scaleMin}-${max}`);
+                }} />
+            </div>
           </div>
         )}
       </CardContent>
@@ -190,7 +223,12 @@ export function SortableQuestionList({ questions, setQuestions, removeQuestion, 
   }
 
   function downloadTemplate() {
-    const template = "SHORT_TEXT,Your question here,Optional description,No\nMULTIPLE_CHOICE,Choose an option,,Yes,Option 1,Option 2,Option 3\nYES_NO,Do you agree?,,Yes\nRATING_SCALE,Rate your experience,,No";
+    const template = [
+      "SHORT_TEXT,Your question here,Optional description,No",
+      "MULTIPLE_CHOICE,Choose an option,,Yes,Option 1,Option 2,Option 3",
+      "YES_NO,Do you agree?,,Yes",
+      "RATING_SCALE,Rate your experience,,No,1,5",
+    ].join("\n");
     const blob = new Blob([template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -226,10 +226,16 @@ export default function PublicSurveyPage() {
         )}
 
         {question.type === "RATING_SCALE" && (
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <Button key={rating} variant={answers[question.id] === String(rating) ? "default" : "outline"} size="sm" className="h-10 w-10" onClick={() => handleAnswer(question.id, String(rating))}>{rating}</Button>
-            ))}
+          <div className="flex gap-2 flex-wrap">
+            {(() => {
+              const parts = (question.options || "1-5").split("-").map(Number);
+              const min = parts[0] || 1, max = parts[1] || 5;
+              const range: number[] = [];
+              for (let i = min; i <= max; i++) range.push(i);
+              return range.map((rating) => (
+                <Button key={rating} variant={answers[question.id] === String(rating) ? "default" : "outline"} size="sm" className="h-10 w-10" onClick={() => handleAnswer(question.id, String(rating))}>{rating}</Button>
+              ));
+            })()}
           </div>
         )}
 

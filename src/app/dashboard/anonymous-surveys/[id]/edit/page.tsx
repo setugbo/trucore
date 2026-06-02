@@ -77,7 +77,7 @@ export default function EditAnonymousSurveyPage() {
           <div className="space-y-2"><Label>Title *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
           <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Category</Label><Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{SURVEY_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Category</Label><Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Select or type a custom category..." list="survey-categories" /><datalist id="survey-categories">{SURVEY_CATEGORIES.map((c) => (<option key={c} value={c} />))}</datalist></div>
             <div className="space-y-2"><Label>Form Style</Label><Select value={formStyle} onValueChange={setFormStyle}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="NOTION">Notion Style</SelectItem><SelectItem value="TYPEFORM">Typeform Style</SelectItem><SelectItem value="CLASSIC">Classic Style</SelectItem></SelectContent></Select></div>
           </div>
         </CardContent></Card>

@@ -91,12 +91,10 @@ export default function NewAnonymousSurveyPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {SURVEY_CATEGORIES.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Select or type a custom category..." list="survey-categories" />
+                <datalist id="survey-categories">
+                  {SURVEY_CATEGORIES.map((cat) => (<option key={cat} value={cat} />))}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <Label>Form Style</Label>
