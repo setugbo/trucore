@@ -1,86 +1,49 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireActor, ApiError, withErrorHandling } from "@/lib/authz";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
 
-    const userId = (session.user as any).id;
-    const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
 
-    const where: any = { userId };
-    if (organizationId) where.organizationId = organizationId;
+  // Always scoped to the caller's own notifications - organizationId here is
+  // just an extra filter, never a way to view someone else's org.
+  const where: any = { userId: actor.userId };
+  if (organizationId) where.organizationId = organizationId;
 
-    const notifications = await prisma.notification.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 50,
+  const notifications = await prisma.notification.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const unreadCount = await prisma.notification.count({
+    where: { ...where, isRead: false },
+  });
+
+  return NextResponse.json({ notifications, unreadCount });
+});
+
+export const PUT = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const { notificationId, markAll } = await request.json();
+
+  if (markAll) {
+    await prisma.notification.updateMany({
+      where: { userId: actor.userId, isRead: false },
+      data: { isRead: true },
     });
-
-    const unreadCount = await prisma.notification.count({
-      where: { ...where, isRead: false },
-    });
-
-    return NextResponse.json({ notifications, unreadCount });
-  } catch (error) {
-    console.error("Notifications fetch error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } else if (notificationId) {
+    const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+    if (!notification || notification.userId !== actor.userId) {
+      throw new ApiError(404, "Not found");
     }
-
-    const { notificationId, markAll } = await request.json();
-    const userId = (session.user as any).id;
-
-    if (markAll) {
-      await prisma.notification.updateMany({
-        where: { userId, isRead: false },
-        data: { isRead: true },
-      });
-    } else if (notificationId) {
-      await prisma.notification.update({
-        where: { id: notificationId },
-        data: { isRead: true },
-      });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Notification update error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    await prisma.notification.update({ where: { id: notificationId }, data: { isRead: true } });
   }
-}
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { organizationId, userId, type, title, message, link } = await request.json();
-
-    const notification = await prisma.notification.create({
-      data: { organizationId, ...(userId !== undefined && { userId }), type, title, message, ...(link !== undefined && { link }) },
-    });
-
-    return NextResponse.json(notification, { status: 201 });
-  } catch (error) {
-    console.error("Notification create error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  return NextResponse.json({ success: true });
+});

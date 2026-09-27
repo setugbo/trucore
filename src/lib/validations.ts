@@ -29,6 +29,7 @@ export const questionSchema = z.object({
   required: z.boolean().default(false),
   order: z.number(),
   options: z.string().optional(),
+  conditionalLogic: z.string().optional(),
 });
 
 export const caseSchema = z.object({

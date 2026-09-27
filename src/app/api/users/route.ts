@@ -1,65 +1,62 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireActor, assertOrgAccess, ApiError, withErrorHandling } from "@/lib/authz";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
 
-    const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+  if (!organizationId) {
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
+  }
+  assertOrgAccess(actor, organizationId);
+  if (actor.roleType === "VIEWER" && !actor.isPlatformAdmin) {
+    throw new ApiError(403, "Forbidden");
+  }
 
-    if (!organizationId) {
-      return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
-    }
-
-    const users = await prisma.membership.findMany({
-      where: { organizationId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            isActive: true,
-            createdAt: true,
-          },
+  const users = await prisma.membership.findMany({
+    where: { organizationId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          isActive: true,
+          createdAt: true,
         },
-        role: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
+      role: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    return NextResponse.json(users);
-  } catch (error) {
-    console.error("Users fetch error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  return NextResponse.json(users);
+});
 
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const PUT = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const { userId, name, email } = await request.json();
+  if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+
+  if (userId !== actor.userId) {
+    // Only an org admin (of the target's own org) or a platform admin may edit someone else.
+    const targetMembership = await prisma.membership.findUnique({ where: { userId } });
+    if (!targetMembership) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    assertOrgAccess(actor, targetMembership.organizationId);
+    if (actor.roleType !== "SYSTEM_ADMIN" && !actor.isPlatformAdmin) {
+      throw new ApiError(403, "Forbidden");
     }
-
-    const { userId, name, email } = await request.json();
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { ...(name && { name }), ...(email && { email }) },
-    });
-
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error("User update error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { ...(name && { name }), ...(email && { email }) },
+  });
+
+  return NextResponse.json(user);
+});

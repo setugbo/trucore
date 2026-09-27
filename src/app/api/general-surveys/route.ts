@@ -1,99 +1,89 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateToken } from "@/lib/utils";
+import { requireActor, assertModulePermission, withErrorHandling } from "@/lib/authz";
+import { surveySchema, questionSchema } from "@/lib/validations";
+import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const createSurveySchema = surveySchema.extend({
+  organizationId: z.string().min(1),
+  questions: z.array(questionSchema).optional(),
+});
 
-    const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
+export const GET = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
 
-    if (!organizationId) {
-      return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
-    }
-
-    const surveys = await prisma.generalSurvey.findMany({
-      where: { organizationId },
-      include: {
-        questions: { orderBy: { order: "asc" } },
-        _count: { select: { responses: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json(surveys);
-  } catch (error) {
-    console.error("General surveys fetch error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+  if (!organizationId) {
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
   }
-}
+  await assertModulePermission(actor, organizationId, "GENERAL_SURVEY", "canView");
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const surveys = await prisma.generalSurvey.findMany({
+    where: { organizationId },
+    include: {
+      questions: { orderBy: { order: "asc" } },
+      _count: { select: { responses: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    const userId = (session.user as any).id;
-    const body = await request.json();
-    const { organizationId, title, description, category, formStyle, isPublic, startDate, endDate, questions } = body;
+  return NextResponse.json(surveys);
+});
 
-    if (!organizationId || !title) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+export const POST = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const body = await request.json();
 
-    const survey = await prisma.generalSurvey.create({
-      data: {
-        organizationId,
-        title,
-        ...(description !== undefined && { description }),
-        ...(category !== undefined && { category }),
-        formStyle: formStyle || "NOTION",
-        isPublic: isPublic || false,
-        publicLink: isPublic ? generateToken(16) : null,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        createdById: userId,
-        questions: {
-          create: (questions || []).map((q: any, index: number) => ({
-            type: q.type,
-            title: q.title,
-            description: q.description,
-            required: q.required || false,
-            order: q.order ?? index,
-            options: q.options || null,
-            conditionalLogic: q.conditionalLogic || null,
-          })),
-        },
-      },
-      include: {
-        questions: { orderBy: { order: "asc" } },
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        organizationId,
-        userId,
-        action: "CREATE",
-        entityType: "GeneralSurvey",
-        entityId: survey.id,
-        metadata: JSON.stringify({ title }),
-      },
-    });
-
-    return NextResponse.json(survey, { status: 201 });
-  } catch (error) {
-    console.error("General survey create error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  const parsed = createSurveySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid survey" }, { status: 400 });
   }
-}
+  const data = parsed.data;
+  await assertModulePermission(actor, data.organizationId, "GENERAL_SURVEY", "canCreate");
+
+  const survey = await prisma.generalSurvey.create({
+    data: {
+      organizationId: data.organizationId,
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      formStyle: data.formStyle,
+      isPublic: data.isPublic,
+      publicLink: data.isPublic ? generateToken(16) : null,
+      startDate: data.startDate ? new Date(data.startDate) : null,
+      endDate: data.endDate ? new Date(data.endDate) : null,
+      createdById: actor.userId,
+      questions: {
+        create: (data.questions || []).map((q, index) => ({
+          type: q.type,
+          title: q.title,
+          description: q.description,
+          required: q.required,
+          order: q.order ?? index,
+          options: q.options || null,
+          conditionalLogic: q.conditionalLogic || null,
+        })),
+      },
+    },
+    include: {
+      questions: { orderBy: { order: "asc" } },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      organizationId: data.organizationId,
+      userId: actor.userId,
+      action: "CREATE",
+      entityType: "GeneralSurvey",
+      entityId: survey.id,
+      metadata: JSON.stringify({ title: data.title }),
+    },
+  });
+
+  return NextResponse.json(survey, { status: 201 });
+});

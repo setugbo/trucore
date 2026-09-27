@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail, renderCaseUpdateEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp, rateLimited } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, { params }: { params: { token: string } }) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`case-track:${ip}`, { limit: 20, windowMs: 60 * 1000 });
+    if (!allowed) return rateLimited();
+
     const caseItem = await prisma.case.findUnique({ where: { reporterToken: params.token } });
     if (!caseItem) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

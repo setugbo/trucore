@@ -1,22 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireActor, assertModulePermission, withErrorHandling } from "@/lib/authz";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const session = await getServerSession(authOptions);
-    const userId = (session?.user as any)?.id;
-    const { content, isFromReporter } = await request.json();
-    if (!content) return NextResponse.json({ error: "Content is required" }, { status: 400 });
-    const message = await prisma.caseMessage.create({
-      data: { caseId: params.id, senderId: isFromReporter ? null : (userId || null), content, isFromReporter: isFromReporter || false },
-    });
-    return NextResponse.json(message, { status: 201 });
-  } catch (error) {
-    console.error("Message create error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+export const POST = withErrorHandling(async (request: Request, { params }: { params: { id: string } }) => {
+  const actor = await requireActor();
+
+  const caseItem = await prisma.case.findUnique({ where: { id: params.id }, select: { organizationId: true } });
+  if (!caseItem) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await assertModulePermission(actor, caseItem.organizationId, "WHISTLEBLOWING", "canEdit");
+
+  const { content } = await request.json();
+  if (!content || typeof content !== "string") {
+    return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
-}
+
+  // This endpoint is the authenticated admin/staff reply channel only.
+  // Reporter-side replies go through the separate token-authenticated
+  // /api/cases/track/[token]/messages route - isFromReporter is never
+  // client-controlled here.
+  const message = await prisma.caseMessage.create({
+    data: { caseId: params.id, senderId: actor.userId, content, isFromReporter: false },
+  });
+  return NextResponse.json(message, { status: 201 });
+});

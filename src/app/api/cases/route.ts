@@ -1,115 +1,109 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { generateCaseId, generateReportToken } from "@/lib/utils";
+import { requireActor, assertModulePermission, withErrorHandling } from "@/lib/authz";
+import { caseSchema } from "@/lib/validations";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
 
-    const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
-    const status = searchParams.get("status");
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+  const status = searchParams.get("status");
 
-    if (!organizationId) {
-      return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
-    }
-
-    const where: any = { organizationId };
-    if (status) where.status = status;
-
-    const cases = await prisma.case.findMany({
-      where,
-      include: {
-        _count: { select: { messages: true, attachments: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json(cases);
-  } catch (error) {
-    console.error("Cases fetch error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (!organizationId) {
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
   }
-}
+  await assertModulePermission(actor, organizationId, "WHISTLEBLOWING", "canView");
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    const userId = (session?.user as any)?.id;
-    const body = await request.json();
-    const { organizationId, title, description, category, priority, isAnonymous, reporterName, reporterEmail } = body;
+  const where: any = { organizationId };
+  if (status) where.status = status;
 
-    if (!organizationId || !title || !description) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+  const cases = await prisma.case.findMany({
+    where,
+    include: {
+      _count: { select: { messages: true, attachments: true } },
+      assignedTo: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    const caseItem = await prisma.case.create({
-      data: {
-        caseId: generateCaseId(),
-        organizationId,
-        title,
-        description,
-        category,
-        priority: priority || "normal",
-        isAnonymous: isAnonymous !== false,
-        reporterToken: generateReportToken(),
-        reporterName: isAnonymous ? null : (reporterName || null),
-        reporterEmail: isAnonymous ? null : (reporterEmail || null),
-        ...(userId ? { assignedToId: userId } : {}),
-      },
-    });
+  return NextResponse.json(cases);
+});
 
-    if (!isAnonymous && userId) {
-      await prisma.caseMessage.create({
-        data: {
-          caseId: caseItem.id,
-          senderId: userId,
-          content: description,
-          isFromReporter: false,
-        },
-      });
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        organizationId,
-        ...(userId ? { userId } : {}),
-        action: "CREATE",
-        entityType: "Case",
-        entityId: caseItem.id,
-        metadata: JSON.stringify({ title, isAnonymous }),
-      },
-    });
-
-    // Notify org admins about new case
-    const orgAdmins = await prisma.membership.findMany({
-      where: { organizationId, role: { type: { in: ["MODULE_ADMIN", "SYSTEM_ADMIN"] } } },
-      include: { user: true },
-    });
-    for (const m of orgAdmins) {
-      await prisma.notification.create({
-        data: {
-          organizationId,
-          userId: m.user.id,
-          type: "CASE_CREATED",
-          title: "New Whistleblowing Case",
-          message: `Case ${caseItem.caseId}: ${title}`,
-          link: `/dashboard/cases/${caseItem.id}`,
-        },
-      });
-    }
-
-    return NextResponse.json(caseItem, { status: 201 });
-  } catch (error) {
-    console.error("Case create error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+export const POST = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const body = await request.json();
+  const { organizationId } = body;
+  if (!organizationId) {
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
   }
-}
+  await assertModulePermission(actor, organizationId, "WHISTLEBLOWING", "canCreate");
+
+  const parsed = caseSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid case" }, { status: 400 });
+  }
+  const data = parsed.data;
+  const userId = actor.userId;
+
+  const caseItem = await prisma.case.create({
+    data: {
+      caseId: generateCaseId(),
+      organizationId,
+      title: data.title,
+      description: data.description,
+      category: data.category || null,
+      priority: data.priority,
+      isAnonymous: data.isAnonymous,
+      reporterToken: generateReportToken(),
+      reporterName: data.isAnonymous ? null : data.reporterName || null,
+      reporterEmail: data.isAnonymous ? null : data.reporterEmail || null,
+      assignedToId: userId,
+    },
+  });
+
+  if (!data.isAnonymous) {
+    await prisma.caseMessage.create({
+      data: {
+        caseId: caseItem.id,
+        senderId: userId,
+        content: data.description,
+        isFromReporter: false,
+      },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      organizationId,
+      userId,
+      action: "CREATE",
+      entityType: "Case",
+      entityId: caseItem.id,
+      metadata: JSON.stringify({ title: data.title, isAnonymous: data.isAnonymous }),
+    },
+  });
+
+  // Notify org admins about new case
+  const orgAdmins = await prisma.membership.findMany({
+    where: { organizationId, role: { type: { in: ["MODULE_ADMIN", "SYSTEM_ADMIN"] } } },
+    include: { user: true },
+  });
+  for (const m of orgAdmins) {
+    await prisma.notification.create({
+      data: {
+        organizationId,
+        userId: m.user.id,
+        type: "CASE_CREATED",
+        title: "New Whistleblowing Case",
+        message: `Case ${caseItem.caseId}: ${data.title}`,
+        link: `/dashboard/cases/${caseItem.id}`,
+      },
+    });
+  }
+
+  return NextResponse.json(caseItem, { status: 201 });
+});

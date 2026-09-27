@@ -1,74 +1,50 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireActor, assertOrgAccess, ApiError, withErrorHandling } from "@/lib/authz";
+import { brandingSchema } from "@/lib/validations";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const GET = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
 
-    const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get("organizationId");
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+  if (!organizationId) return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
+  assertOrgAccess(actor, organizationId);
 
-    if (!organizationId) {
-      return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
-    }
+  const branding = await prisma.brandingConfig.findUnique({ where: { organizationId } });
+  return NextResponse.json(branding);
+});
 
-    const branding = await prisma.brandingConfig.findUnique({
-      where: { organizationId },
-    });
+export const PUT = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const { organizationId, ...data } = await request.json();
+  if (!organizationId) return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
 
-    return NextResponse.json(branding);
-  } catch (error) {
-    console.error("Branding fetch error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  assertOrgAccess(actor, organizationId);
+  if (actor.roleType !== "SYSTEM_ADMIN" && !actor.isPlatformAdmin) {
+    throw new ApiError(403, "Forbidden");
   }
-}
 
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { organizationId, ...data } = await request.json();
-
-    const userId = (session.user as any).id;
-    const sessionMembership = (session.user as any)?.membership;
-    const isSuperAdmin = sessionMembership?.role?.type === "SYSTEM_ADMIN";
-    const membership = await prisma.membership.findUnique({
-      where: { userId },
-    });
-
-    if (!membership && !isSuperAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const branding = await prisma.brandingConfig.upsert({
-      where: { organizationId },
-      update: {
-        ...(data.primaryColor && { primaryColor: data.primaryColor }),
-        ...(data.secondaryColor && { secondaryColor: data.secondaryColor }),
-        ...(data.accentColor && { accentColor: data.accentColor }),
-        ...(data.companyName !== undefined && { companyName: data.companyName }),
-        ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
-        ...(data.theme && { theme: data.theme }),
-      },
-      create: {
-        organizationId,
-        ...data,
-      },
-    });
-
-    return NextResponse.json(branding);
-  } catch (error) {
-    console.error("Branding update error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  const parsed = brandingSchema.partial().safeParse(data);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid branding data" }, { status: 400 });
   }
-}
+  const fields = parsed.data;
+
+  const branding = await prisma.brandingConfig.upsert({
+    where: { organizationId },
+    update: {
+      ...(fields.primaryColor && { primaryColor: fields.primaryColor }),
+      ...(fields.secondaryColor && { secondaryColor: fields.secondaryColor }),
+      ...(fields.accentColor && { accentColor: fields.accentColor }),
+      ...(fields.companyName !== undefined && { companyName: fields.companyName }),
+      ...(fields.logoUrl !== undefined && { logoUrl: fields.logoUrl }),
+      ...(fields.theme && { theme: fields.theme }),
+    },
+    create: { organizationId, ...fields },
+  });
+
+  return NextResponse.json(branding);
+});

@@ -49,6 +49,7 @@ model Organization {
   name             String
   slug             String   @unique
   publicReportSlug String?  @unique
+  isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -70,6 +71,7 @@ model User {
   image     String?
   password  String?
   isActive  Boolean  @default(true)
+  isPlatformAdmin Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -425,4 +427,14 @@ model Notification {
   @@index([organizationId])
   @@index([userId])
   @@index([isRead])
+}
+
+model RateLimitHit {
+  id          String   @id @default(cuid())
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@unique([key, windowStart])
+  @@index([key])
 }
