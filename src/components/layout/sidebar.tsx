@@ -18,6 +18,7 @@ import {
   Building2,
   ChevronLeft,
   ShieldCheck,
+  Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -60,6 +61,7 @@ export function Sidebar() {
 
   const membership = (session?.user as any)?.membership;
   const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
+  const isPlatformAdmin = !!(session?.user as any)?.isPlatformAdmin;
 
   return (
     <aside
@@ -144,6 +146,23 @@ export function Sidebar() {
               >
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>Admin Panel</span>}
+              </Button>
+            </Link>
+          )}
+
+          {isPlatformAdmin && (
+            <Link href="/dashboard/platform">
+              <Button
+                variant={pathname.startsWith("/dashboard/platform") ? "secondary" : "ghost"}
+                size={collapsed ? "icon" : "default"}
+                className={cn(
+                  "w-full justify-start gap-3 font-normal",
+                  collapsed && "justify-center px-0",
+                  pathname.startsWith("/dashboard/platform") && "bg-violet-100 dark:bg-violet-950/30 font-medium text-violet-700 dark:text-violet-400"
+                )}
+              >
+                <Globe className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>Platform Admin</span>}
               </Button>
             </Link>
           )}

@@ -1,37 +1,44 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireActor, ApiError, withErrorHandling } from "@/lib/authz";
+import { checkRateLimit, getClientIp, rateLimited } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`access-request:${ip}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+    if (!allowed) return rateLimited();
+
     const { name, email, organizationName, reason } = await request.json();
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
     }
 
-    // Check if already exists
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: "An account with this email already exists. Please contact your organization admin." }, { status: 400 });
     }
 
-    // Create a notification for super admins
-    const superAdmins = await prisma.user.findMany({
-      where: { membership: { role: { type: "SYSTEM_ADMIN" } } },
+    // Access requests are a platform-level concern (someone wants an org
+    // set up / added to the platform), so only TRUCORE's own platform
+    // admins should be notified - never every customer org's own admin.
+    const platformAdmins = await prisma.user.findMany({
+      where: { isPlatformAdmin: true },
+      include: { membership: true },
     });
 
-    for (const admin of superAdmins) {
+    for (const admin of platformAdmins) {
+      if (!admin.membership) continue;
       await prisma.notification.create({
         data: {
-          organizationId: (await prisma.organization.findFirst({ orderBy: { createdAt: "asc" } }))?.id || "",
+          organizationId: admin.membership.organizationId,
           userId: admin.id,
           type: "ACCESS_REQUEST",
           title: "New Access Request",
           message: `${name} (${email}) has requested access.${organizationName ? ` Organization: ${organizationName}` : ""}${reason ? ` Reason: ${reason}` : ""}`,
-          link: "/dashboard/admin",
+          link: "/dashboard/platform",
         },
       });
     }
@@ -45,23 +52,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const membership = (session.user as any)?.membership;
-    const isSuperAdmin = membership?.role?.type === "SYSTEM_ADMIN";
-    if (!isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export const GET = withErrorHandling(async () => {
+  const actor = await requireActor();
+  if (!actor.isPlatformAdmin) throw new ApiError(403, "Forbidden");
 
-    const requests = await prisma.notification.findMany({
-      where: { type: "ACCESS_REQUEST" },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+  const requests = await prisma.notification.findMany({
+    where: { type: "ACCESS_REQUEST" },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 
-    return NextResponse.json(requests);
-  } catch (error) {
-    console.error("Fetch access requests error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  return NextResponse.json(requests);
+});

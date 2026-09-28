@@ -49,8 +49,9 @@ function AdminContent() {
   }, [isSystemAdmin, orgId]);
 
   async function fetchUsers() {
+    if (!orgId) return;
     setUsersLoading(true);
-    try { const r = await fetch("/api/admin/users"); if (r.ok) setUsers(await r.json()); } catch {}
+    try { const r = await fetch(`/api/admin/organizations/${orgId}/users`); if (r.ok) setUsers(await r.json()); } catch {}
     finally { setUsersLoading(false); }
   }
 
@@ -105,34 +106,31 @@ function AdminContent() {
     } catch { toast.error("Failed"); }
   }
 
-  async function toggleUserActive(userId: string, current: boolean) {
+  async function toggleUserActive(membershipId: string, current: boolean) {
     try {
-      const r = await fetch("/api/admin/users", {
+      const r = await fetch(`/api/admin/organizations/${orgId}/users`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, isActive: !current }),
+        body: JSON.stringify({ membershipId, isActive: !current }),
       });
       if (r.ok) { toast.success(`User ${current ? "deactivated" : "activated"}`); fetchUsers(); }
       else { toast.error("Failed"); }
     } catch { toast.error("Failed"); }
   }
 
-  async function deleteUser(userId: string, name: string) {
-    if (!confirm(`Permanently delete user "${name}"? This cannot be undone.`)) return;
+  async function removeUser(membershipId: string, name: string) {
+    if (!confirm(`Remove "${name}" from this organization?`)) return;
     try {
-      const r = await fetch(`/api/admin/users`, {
-        method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      if (r.ok) { toast.success("User deleted"); fetchUsers(); }
+      const r = await fetch(`/api/admin/organizations/${orgId}/users?membershipId=${membershipId}`, { method: "DELETE" });
+      if (r.ok) { toast.success("User removed"); fetchUsers(); }
       else { const e = await r.json(); toast.error(e.error || "Failed"); }
     } catch { toast.error("Failed"); }
   }
 
-  async function changeUserRole(userId: string, newRole: string) {
+  async function changeUserRole(membershipId: string, newRole: string) {
     try {
-      const r = await fetch("/api/admin/users", {
+      const r = await fetch(`/api/admin/organizations/${orgId}/users`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, roleType: newRole }),
+        body: JSON.stringify({ membershipId, roleType: newRole }),
       });
       if (r.ok) { toast.success("Role updated"); fetchUsers(); fetchPermissions(); }
       else { toast.error("Failed"); }
@@ -196,7 +194,7 @@ function AdminContent() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Select value={u.membership?.role?.type || "VIEWER"} onValueChange={(v) => changeUserRole(u.id, v)}>
+                          <Select value={u.membership?.role?.type || "VIEWER"} onValueChange={(v) => changeUserRole(u.membershipId, v)}>
                             <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="SYSTEM_ADMIN">System Admin</SelectItem>
@@ -204,11 +202,11 @@ function AdminContent() {
                               <SelectItem value="VIEWER">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button variant="ghost" size="icon-sm" onClick={() => toggleUserActive(u.id, u.isActive)} title={u.isActive ? "Deactivate" : "Activate"}>
+                          <Button variant="ghost" size="icon-sm" onClick={() => toggleUserActive(u.membershipId, u.isActive)} title={u.isActive ? "Deactivate" : "Activate"}>
                             {u.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                           </Button>
                           <Badge variant={u.isActive ? "success" : "secondary"}>{u.isActive ? "Active" : "Inactive"}</Badge>
-                          <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => deleteUser(u.id, u.name || u.email)} title="Delete user">
+                          <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeUser(u.membershipId, u.name || u.email)} title="Remove from organization">
                             <UserMinus className="h-4 w-4" />
                           </Button>
                         </div>

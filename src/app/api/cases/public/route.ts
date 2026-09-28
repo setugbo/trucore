@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateCaseId, generateReportToken } from "@/lib/utils";
-import { v4 as uuid } from "uuid";
+import { checkRateLimit, getClientIp, rateLimited } from "@/lib/rate-limit";
+import { assertValidUpload, fileToDataUrl, MAX_FILES_PER_SUBMISSION, UploadValidationError } from "@/lib/uploads";
+import { caseSchema } from "@/lib/validations";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`case-submit:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+    if (!allowed) return rateLimited();
+
     const contentType = request.headers.get("content-type") || "";
     let title: string, description: string, category: string, priority: string;
     let isAnonymous = true;
@@ -39,52 +45,62 @@ export async function POST(request: Request) {
       organizationSlug = body.organizationSlug || null;
     }
 
-    if (!title || !description) {
-      return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
+    const parsed = caseSchema.safeParse({
+      title,
+      description,
+      category: category || undefined,
+      priority: (priority || "normal") as any,
+      isAnonymous,
+      reporterName: reporterName || undefined,
+      reporterEmail: reporterEmail || undefined,
+    });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid submission" }, { status: 400 });
     }
 
-    let org = null;
-    if (organizationSlug) {
-      org = await prisma.organization.findFirst({
-        where: { OR: [{ slug: organizationSlug }, { publicReportSlug: organizationSlug }] },
-      });
+    if (!organizationSlug) {
+      return NextResponse.json({ error: "organizationSlug is required" }, { status: 400 });
     }
-    if (!org) {
-      org = await prisma.organization.findFirst({ orderBy: { createdAt: "asc" } });
+    const org = await prisma.organization.findFirst({
+      where: { OR: [{ slug: organizationSlug }, { publicReportSlug: organizationSlug }] },
+    });
+    if (!org) return NextResponse.json({ error: "Unknown organization" }, { status: 400 });
+
+    if (evidenceFiles.length > MAX_FILES_PER_SUBMISSION) {
+      return NextResponse.json({ error: `A maximum of ${MAX_FILES_PER_SUBMISSION} files may be attached` }, { status: 400 });
     }
-    if (!org) return NextResponse.json({ error: "No organization configured" }, { status: 500 });
+    for (const file of evidenceFiles) {
+      try {
+        assertValidUpload(file);
+      } catch (e) {
+        if (e instanceof UploadValidationError) return NextResponse.json({ error: e.message }, { status: 400 });
+        throw e;
+      }
+    }
 
     const token = generateReportToken();
 
+    const data = parsed.data;
     const caseItem = await prisma.case.create({
       data: {
         caseId: generateCaseId(),
         organizationId: org.id,
-        title,
-        description,
-        category: category || null,
-        priority: priority || "normal",
-        isAnonymous: isAnonymous !== false,
+        title: data.title,
+        description: data.description,
+        category: data.category || null,
+        priority: data.priority,
+        isAnonymous: data.isAnonymous,
         reporterToken: token,
-        reporterName: isAnonymous ? null : reporterName,
-        reporterEmail: isAnonymous ? null : reporterEmail,
+        reporterName: data.isAnonymous ? null : data.reporterName || null,
+        reporterEmail: data.isAnonymous ? null : data.reporterEmail || null,
       },
     });
 
-    // Handle file uploads - store as base64 in DB for Vercel compatibility
+    // Files were already validated (type/size/count) above; store as base64 in DB for serverless compatibility.
     let uploadedCount = 0;
     for (const file of evidenceFiles) {
       try {
-        const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
-        if (file.size > MAX_SIZE) {
-          console.warn("File too large, skipping:", file.name);
-          continue;
-        }
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const base64 = buffer.toString("base64");
-        const dataUrl = `data:${file.type || "application/octet-stream"};base64,${base64}`;
-
+        const dataUrl = await fileToDataUrl(file);
         await prisma.caseAttachment.create({
           data: { caseId: caseItem.id, fileName: file.name, fileUrl: dataUrl, fileSize: file.size, mimeType: file.type || null },
         });

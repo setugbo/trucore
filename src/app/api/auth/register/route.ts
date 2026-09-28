@@ -2,20 +2,24 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { registerSchema } from "@/lib/validations";
+import { checkRateLimit, getClientIp, rateLimited } from "@/lib/rate-limit";
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, organizationName } = await request.json();
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`register:${ip}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+    if (!allowed) return rateLimited();
 
-    if (!name || !email || !password || !organizationName) {
-      return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+    const body = await request.json();
+    const parsed = registerSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
+    const { name, email, password, organizationName } = parsed.data;
 
-    if (password.length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters long" }, { status: 400 });
-    }
     if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
       return NextResponse.json({ error: "Password must contain uppercase, lowercase, and a number" }, { status: 400 });
     }

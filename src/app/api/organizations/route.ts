@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { requireActor, assertOrgAccess, ApiError, withErrorHandling } from "@/lib/authz";
 
 export const dynamic = 'force-dynamic';
 
@@ -29,37 +30,23 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const PUT = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  const { organizationId, name, slug } = await request.json();
+  if (!organizationId) return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
 
-    const { organizationId, name, slug, logo } = await request.json();
-
-    const userId = (session.user as any).id;
-    const membership = await prisma.membership.findUnique({
-      where: { userId },
-      include: { role: true, organization: true },
-    });
-
-    if (!membership || (membership.role.type !== "SYSTEM_ADMIN" && membership.role.type !== "MODULE_ADMIN") || membership.organizationId !== organizationId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const org = await prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        ...(name && { name }),
-        ...(slug && { slug }),
-        ...(logo !== undefined && { logo }),
-      },
-    });
-
-    return NextResponse.json(org);
-  } catch (error) {
-    console.error("Organization update error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  assertOrgAccess(actor, organizationId);
+  if (actor.roleType !== "SYSTEM_ADMIN" && actor.roleType !== "MODULE_ADMIN" && !actor.isPlatformAdmin) {
+    throw new ApiError(403, "Forbidden");
   }
-}
+
+  const org = await prisma.organization.update({
+    where: { id: organizationId },
+    data: {
+      ...(name && { name }),
+      ...(slug && { slug }),
+    },
+  });
+
+  return NextResponse.json(org);
+});

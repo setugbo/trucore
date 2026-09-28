@@ -1,25 +1,30 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import nodemailer from "nodemailer";
+import { requireActor, ApiError, withErrorHandling } from "@/lib/authz";
+import { checkRateLimit, rateLimited } from "@/lib/rate-limit";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export const POST = withErrorHandling(async (request: Request) => {
+  const actor = await requireActor();
+  if (actor.roleType !== "SYSTEM_ADMIN" && !actor.isPlatformAdmin) {
+    throw new ApiError(403, "Forbidden");
+  }
+
+  const allowed = await checkRateLimit(`email-test:${actor.userId}`, { limit: 5, windowMs: 60 * 60 * 1000 });
+  if (!allowed) return rateLimited();
+
+  const { to } = await request.json();
+  if (!to) return NextResponse.json({ error: "Recipient email is required" }, { status: 400 });
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 465,
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+  });
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const { to } = await request.json();
-    if (!to) return NextResponse.json({ error: "Recipient email is required" }, { status: 400 });
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 465,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-    });
-
     await transporter.sendMail({
       from: process.env.SMTP_FROM || "noreply@trucore.app",
       to,
@@ -32,10 +37,10 @@ export async function POST(request: Request) {
         </div>
       `,
     });
-
-    return NextResponse.json({ message: "Test email sent successfully" });
   } catch (error: any) {
     console.error("Test email error:", error);
-    return NextResponse.json({ error: error.message || "Failed to send test email" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to send test email" }, { status: 500 });
   }
-}
+
+  return NextResponse.json({ message: "Test email sent successfully" });
+});

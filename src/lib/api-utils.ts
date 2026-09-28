@@ -32,35 +32,6 @@ export function success(data: any, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-export async function getOrgContext(organizationId?: string) {
-  const session = await getSession();
-  if (!session?.user) return null;
-
-  const userId = (session.user as any).id;
-
-  const membership = await prisma.membership.findUnique({
-    where: { userId },
-    include: { role: true, organization: true },
-  });
-  return membership;
-}
-
-export async function checkPermission(
-  organizationId: string,
-  moduleType: string,
-  permission: "canView" | "canCreate" | "canEdit" | "canDelete"
-) {
-  const membership = await getOrgContext(organizationId);
-  if (!membership) return false;
-
-  if (Array.isArray(membership)) return false;
-
-  if (membership.role.type === "SYSTEM_ADMIN" || membership.role.type === "MODULE_ADMIN") {
-    return true;
-  }
-  return false;
-}
-
 export async function createAuditLog(params: {
   organizationId: string;
   userId?: string;

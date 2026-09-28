@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkRateLimit, getClientIp, rateLimited } from "@/lib/rate-limit";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+// Intentionally unauthenticated: on a brand-new deployment there is no user
+// (and therefore no admin session) yet, so this is what bootstraps the
+// three fixed roles a first registration needs. It is idempotent and only
+// ever inserts the same 3 static rows - no user data, no secrets - so it
+// carries none of the risk that /api/admin/seed-demo does.
+export async function GET(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`admin-setup:${ip}`, { limit: 10, windowMs: 60 * 1000 });
+    if (!allowed) return rateLimited();
+
     const existingRoles = await prisma.role.findFirst();
     if (existingRoles) {
       return new Response(`<html><body style="font-family:Inter;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8fafc">
@@ -34,8 +44,12 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`admin-setup:${ip}`, { limit: 10, windowMs: 60 * 1000 });
+    if (!allowed) return rateLimited();
+
     const existingRoles = await prisma.role.findFirst();
     if (existingRoles) return NextResponse.json({ message: "System already initialized" });
 

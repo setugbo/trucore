@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { randomInt } from "crypto";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -23,42 +24,64 @@ export function formatDateTime(date: Date | string): string {
   }).format(new Date(date));
 }
 
+/** Picks a cryptographically random index in [0, max). */
+function secureIndex(max: number): number {
+  return randomInt(0, max);
+}
+
+function randomChars(alphabet: string, length: number): string {
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += alphabet.charAt(secureIndex(alphabet.length));
+  }
+  return result;
+}
+
 export function generatePassword(length = 12): string {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
   const digits = "0123456789";
   const all = upper + lower + digits;
-  let result = upper[Math.floor(Math.random() * upper.length)];
-  result += lower[Math.floor(Math.random() * lower.length)];
-  result += digits[Math.floor(Math.random() * digits.length)];
-  for (let i = 3; i < length; i++) {
-    result += all[Math.floor(Math.random() * all.length)];
+  const chars = [
+    upper[secureIndex(upper.length)],
+    lower[secureIndex(lower.length)],
+    digits[secureIndex(digits.length)],
+    ...Array.from({ length: Math.max(0, length - 3) }, () => all[secureIndex(all.length)]),
+  ];
+  // Fisher-Yates shuffle using a CSPRNG instead of Math.random().
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = secureIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-  return result.split("").sort(() => Math.random() - 0.5).join("");
+  return chars.join("");
 }
 
+/** Cryptographically-random opaque token (e.g. password-reset tokens). */
 export function generateToken(length = 32): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return randomChars(chars, length);
 }
 
+/**
+ * Whistleblower tracking code. This is a bearer credential that stands in for
+ * authentication on the public /track page, so it needs real entropy (not just
+ * a "looks random" format) and a wide enough keyspace to resist brute force
+ * even behind rate limiting.
+ */
 export function generateReportToken(): string {
   const prefix = "TC";
-  const nums = Math.floor(100000 + Math.random() * 900000);
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  const digits = "0123456789";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I
+  const nums = randomChars(digits, 6);
+  const code = randomChars(chars, 8);
   return `${prefix}-${nums}-${code}`;
 }
 
+/** Display/reference ID only - not used for access control, so no CSPRNG requirement. */
 export function generateCaseId(): string {
   const prefix = "TC";
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const random = randomChars("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 4);
   return `${prefix}-${timestamp}-${random}`;
 }
 
